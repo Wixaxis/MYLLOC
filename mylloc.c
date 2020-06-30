@@ -41,5 +41,5 @@ void *mylloc(size_t size)
         to_give->is_free = false;                                      //setting to_give as taken
         set_fences(to_give);                                           //setting fences in first chunk
         set_fences(heap.last_chunk);                                   //setting fences in last chunk
-        }
+    }
 }

@@ -25,7 +25,7 @@
 
 typedef struct _fence
 {
-    char fens[FENCE_SIZE];
+    char fens[FENCE_SIZE]; 
 } fence;
 
 typedef struct _chunk_t

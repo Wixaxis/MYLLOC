@@ -8,7 +8,7 @@ void feedback(char *msg)
     sprintf(ERRSTR.ERRTAB + ERRSTR.errsize, "%s\n", msg);
     pthread_mutex_unlock(&err_mamutex);
 }
-void display_errs()
+void display_errs() 
 {
     if (!ERRSTR.errsize)
         printf("No errors. Great!");

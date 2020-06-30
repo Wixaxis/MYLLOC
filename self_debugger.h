@@ -8,7 +8,7 @@
 
 struct err_t
 {
-    char ERRTAB[ERRSIZE];
+    char ERRTAB[ERRSIZE]; 
     int errsize;
 } ERRSTR;
 
