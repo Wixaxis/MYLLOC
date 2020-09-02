@@ -9,7 +9,7 @@
 #include <math.h>
 #include "custom_unistd.h"
 
-#define FENCE_SIZE 100
+#define FENCE_SIZE 25
 #define KB_SIZE 1024
 #define PAGE_SIZE (4 * KB_SIZE)
 #define CHUNK_SIZE (sizeof(_chunk))
@@ -44,6 +44,7 @@ typedef struct _heap_t
     uint64_t fence_sum;
     uint64_t pages_allocated;
     uint64_t available_space;
+    uint64_t chunk_count;
 } _heap;
 
 _heap heap;
@@ -97,5 +98,13 @@ int heap_validate(void);
 void heap_dump_debug_information(void);
 
 bool resize_heap_pages(int pages);
+
+void set_chunk(_chunk *chunk, _chunk *prev_chunk, size_t memsize);
+
+void set_fences(_chunk *chunk);
+
+bool split_chunk(_chunk *chunk_to_split, size_t memsize);
+
+_chunk* find_fitting_chunk(void);
 
 #endif
