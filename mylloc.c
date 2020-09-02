@@ -1,45 +1,134 @@
 #include "mylloc.h"
 
-void feed(char *msg)
+int heap_setup(void)
 {
-#ifdef BUGGED
-    feedback(msg);
-#else
-    return;
-#endif
+    pthread_mutex_init(&myllock_mutex, NULL);
+    heap.first_chunk = NULL;
+    heap.fence_sum = 0;
+    heap.last_chunk = NULL;
+    heap.heap_size = 0;
+    heap.pages_allocated = 0;
 }
 
-void set_fences(_chunk *chunk)
+void *heap_malloc(size_t count)
 {
-    int to_increase = 0;
-    to_increase += chunk->fence_left.fens[0] = rand() % 100;
-    to_increase += chunk->fence_left.fens[FENCE_SIZE - 1] = rand() % 100;
-    to_increase += chunk->fence_right.fens[0] = rand() % 100;
-    to_increase += chunk->fence_right.fens[FENCE_SIZE - 1] = rand() % 100;
-    heap.fence_sum += to_increase;
-}
-
-void *mylloc(size_t size)
-{
-    if (0 >= size)
-        return NULL;
-    int to_allocate = 0;
-    if (!heap.heap_size)
+    if (count + sizeof(_chunk) < count)
+        return NULL; //unsigned integer overflow detection
+    if (heap.available_space < MEM_SIZE2CHUNK_SIZE(count))
     {
-        to_allocate = PAGE_SIZE * SIZE2PAGES((size + 2 * sizeof(_chunk))); //Calculate how many bytes to give to sbrk
-        void *new = sbrk(to_allocate);                                     //allocating to_allocate bytes
-        if (BRK_ERR == new)
-            return feed("SBRK ERR"), NULL;
-        memset(new, 0, to_allocate);                                   //zeroing new memory
-        heap.heap_size = to_allocate;                                  //setting heap size to allocated memory
-        heap.first_chunk = (_chunk *)new;                              //setting first chunk at beggining of memory
-        _chunk *to_give = heap.first_chunk;                            //setting to_give as first chunk
-        heap.last_chunk = (char *)to_give + MEM_SIZE2CHUNK_SIZE(size); //setting last chunk as memory right after first chunk
-        to_give->mem_size = size;                                      //setting first chunk mem_size to size
-        to_give->next_chunk = heap.last_chunk;                         //setting next chunk of first chunk as last chunk
-        to_give->prev_chunk = NULL;                                    //setting previous chunk of first chunk as NULL
-        to_give->is_free = false;                                      //setting to_give as taken
-        set_fences(to_give);                                           //setting fences in first chunk
-        set_fences(heap.last_chunk);                                   //setting fences in last chunk
+        int needed = MEM_SIZE2CHUNK_SIZE(count) - heap.available_space;
+        resize_heap_pages(SIZE2PAGES(needed));
     }
+    
+}
+
+bool resize_heap_pages(int pages)
+{
+    if (!pages)
+        return true;
+    if (pages > 0)
+    {
+        if (!heap.pages_allocated)
+            if (heap.first_chunk = heap.last_chunk = custom_sbrk(pages * PAGE_SIZE) == NULL)
+                return false;
+        if (heap.pages_allocated)
+            if (custom_sbrk(pages * PAGE_SIZE) == NULL)
+                return false;
+        heap.pages_allocated += pages;
+        heap.available_space += PAGE_SIZE * pages;
+        return true;
+    }
+    if (heap.pages_allocated < abs(pages))
+        return false;
+    if (heap.pages_allocated == pages)
+    {
+        custom_sbrk(pages * PAGE_SIZE);
+        heap.pages_allocated = 0;
+        heap.first_chunk = NULL;
+        heap.last_chunk = NULL;
+        heap.available_space = 0;
+        return true;
+    }
+    custom_sbrk(pages * PAGE_SIZE);
+    heap.pages_allocated;
+    heap.available_space += pages * PAGE_SIZE;
+}
+
+void *heap_calloc(size_t number, size_t size)
+{
+}
+void heap_free(void *memblock)
+{
+}
+void *heap_realloc(void *memblock, size_t size)
+{
+}
+
+void *heap_malloc_debug(size_t count, int fileline, const char *filename)
+{
+}
+void *heap_calloc_debug(size_t number, size_t size, int fileline, const char *filename)
+{
+}
+void *heap_realloc_debug(void *memblock, size_t size, int fileline, const char *filename)
+{
+}
+
+void *heap_malloc_aligned(size_t count)
+{
+}
+void *heap_calloc_aligned(size_t number, size_t size)
+{
+}
+void *heap_realloc_aligned(void *memblock, size_t size)
+{
+}
+
+void *heap_malloc_aligned_debug(size_t count, int fileline, const char *filename)
+{
+}
+void *heap_calloc_aligned_debug(size_t number, size_t size, int fileline, const char *filename)
+{
+}
+void *heap_realloc_aligned_debug(void *memblock, size_t size, int fileline, const char *filename)
+{
+}
+
+size_t heap_get_used_space(void)
+{
+}
+size_t heap_get_largest_used_block_size(void)
+{
+}
+uint64_t heap_get_used_blocks_count(void)
+{
+}
+size_t heap_get_free_space(void)
+{
+}
+size_t heap_get_largest_free_area(void)
+{
+}
+uint64_t heap_get_free_gaps_count(void)
+{
+}
+
+enum pointer_type_t get_pointer_type(const const void *pointer)
+{
+}
+
+void *heap_get_data_block_start(const void *pointer)
+{
+}
+
+size_t heap_get_block_size(const const void *memblock)
+{
+}
+
+int heap_validate(void)
+{
+}
+
+void heap_dump_debug_information(void)
+{
 }
