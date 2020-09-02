@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include "custom_unistd.h"
+#include "mylloc.h"
 
 
 int main(int argc, char **argv)
 {
 
+	
     // Tutaj można pisać kod
     // Zapoznaj się z funkcją main w bloku #if...#endif
     

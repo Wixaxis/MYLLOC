@@ -6,7 +6,7 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <math.h>
+#include <stdlib.h>
 #include "custom_unistd.h"
 
 #define FENCE_SIZE 25
@@ -28,8 +28,8 @@ typedef struct _fence
 typedef struct _chunk_t
 {
     fence fence_left;
-    _chunk *next_chunk;
-    _chunk *prev_chunk;
+    struct _chunk_t *next_chunk;
+    struct _chunk_t *prev_chunk;
     uint64_t mem_size;
     bool is_free;
     fence fence_right;
@@ -38,7 +38,6 @@ typedef struct _chunk_t
 
 typedef struct _heap_t
 {
-    uint64_t heap_size;
     _chunk *first_chunk;
     _chunk *last_chunk;
     uint64_t fence_sum;
@@ -105,6 +104,6 @@ void set_fences(_chunk *chunk);
 
 bool split_chunk(_chunk *chunk_to_split, size_t memsize);
 
-_chunk* find_fitting_chunk(void);
+_chunk* find_fitting_chunk(size_t to_allocate);
 
 #endif
