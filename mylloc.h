@@ -30,6 +30,8 @@ typedef struct _chunk_t
     fence fence_left;
     struct _chunk_t *next_chunk;
     struct _chunk_t *prev_chunk;
+    int fileline;
+    const char *filename;
     uint64_t mem_size;
     bool is_free;
     fence fence_right;
@@ -104,6 +106,6 @@ void set_fences(_chunk *chunk);
 
 bool split_chunk(_chunk *chunk_to_split, size_t memsize);
 
-_chunk* find_fitting_chunk(size_t to_allocate);
+_chunk *find_fitting_chunk(size_t to_allocate);
 
 #endif

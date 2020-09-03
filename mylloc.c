@@ -11,22 +11,12 @@ int heap_setup(void)
     heap.pages_allocated = 1;
     heap.chunk_count = 1;
     set_chunk(heap.first_chunk, NULL, PAGE_SIZE - CHUNK_SIZE);
+    return 0;
 }
 
 void *heap_malloc(size_t count)
 {
-    if (count + sizeof(_chunk) < count)
-        return NULL; //unsigned integer overflow detection
-    if (heap_get_largest_free_area() < MEM_SIZE2CHUNK_SIZE(count))
-    {
-        int needed = MEM_SIZE2CHUNK_SIZE(count) - heap.available_space;
-        resize_heap_pages(SIZE2PAGES(needed));
-    }
-    _chunk *fitting_chunk = find_fitting_chunk(count);
-    if (NULL == fitting_chunk)
-        return NULL;
-    fitting_chunk->is_free = false;
-    return CHUNK2MEM(fitting_chunk);
+    return heap_malloc_debug(count, 0, NULL);
 }
 
 _chunk *find_fitting_chunk(size_t to_allocate)
@@ -40,7 +30,7 @@ _chunk *find_fitting_chunk(size_t to_allocate)
             continue;
         if (curr_chunk->mem_size == to_allocate)
             return curr_chunk;
-        if (curr_chunk->mem_size > to_allocate + CHUNK_SIZE + 10)
+        if (curr_chunk->mem_size > to_allocate + CHUNK_SIZE + sizeof(double))
         {
             split_chunk(curr_chunk, to_allocate);
             return curr_chunk;
@@ -85,7 +75,7 @@ bool resize_heap_pages(int pages)
             return false;
         heap.pages_allocated += pages;
         heap.available_space += PAGE_SIZE * pages;
-        // heap.
+        heap.last_chunk->mem_size += PAGE_SIZE * pages;
         return true;
     }
     if (heap.pages_allocated < abs(pages))
@@ -102,26 +92,84 @@ bool resize_heap_pages(int pages)
     custom_sbrk(pages * PAGE_SIZE);
     heap.pages_allocated += pages;
     heap.available_space += pages * PAGE_SIZE;
+    return true;
 }
 
 void *heap_calloc(size_t number, size_t size)
 {
+    return heap_calloc_debug(number, size, 0, NULL);
 }
 void heap_free(void *memblock)
 {
+    if (pointer_valid != get_pointer_type(memblock))
+        return;
+    _chunk *chunk = memblock;
+    chunk--;
+    chunk->is_free = true;
 }
+
+void coalesce_if_possible(_chunk *chunk)
+{
+    if (chunk == NULL || chunk->is_free == false)
+        return;
+    if (chunk->next_chunk != NULL && chunk->next_chunk->is_free)
+    {
+        _chunk *to_destroy = chunk->next_chunk;
+        chunk->next_chunk = to_destroy->next_chunk;
+        chunk->mem_size += to_destroy->mem_size + CHUNK_SIZE;
+        for (int i = 0; i < FENCE_SIZE; i++)
+            heap.fence_sum -= to_destroy->fence_left.fens[i] + to_destroy->fence_right.fens[i];
+    }
+    coalesce_if_possible(chunk->prev_chunk);
+}
+
 void *heap_realloc(void *memblock, size_t size)
 {
+    return heap_realloc_debug(memblock, size, 0, NULL);
 }
 
 void *heap_malloc_debug(size_t count, int fileline, const char *filename)
 {
+    if (count + sizeof(_chunk) < count)
+        return NULL; //unsigned integer overflow detection
+    if (heap_get_largest_free_area() < MEM_SIZE2CHUNK_SIZE(count))
+    {
+        int needed = MEM_SIZE2CHUNK_SIZE(count) - heap.available_space;
+        resize_heap_pages(SIZE2PAGES(needed));
+    }
+    _chunk *fitting_chunk = find_fitting_chunk(count);
+    if (NULL == fitting_chunk)
+        return NULL;
+    fitting_chunk->is_free = false;
+    fitting_chunk->filename = filename;
+    fitting_chunk->fileline = fileline;
+    return CHUNK2MEM(fitting_chunk);
 }
 void *heap_calloc_debug(size_t number, size_t size, int fileline, const char *filename)
 {
+    if (number + size < number)
+        return NULL;
+    void *ptr = heap_malloc_debug(size * number, fileline, filename);
+    if (NULL == ptr)
+        return NULL;
+    return memset(ptr, 0, size * number);
 }
 void *heap_realloc_debug(void *memblock, size_t size, int fileline, const char *filename)
 {
+    if (pointer_valid != get_pointer_type(memblock))
+        return NULL;
+    _chunk *chunk = find_fitting_chunk(size);
+    if (NULL == chunk)
+    {
+        chunk = heap_malloc(size);
+        if (NULL == chunk)
+            return NULL;
+    }
+    memcpy(chunk + 1, memblock, size);
+    chunk->fileline = fileline;
+    chunk->filename = filename;
+    heap_free(memblock);
+    return chunk + 1;
 }
 
 void *heap_malloc_aligned(size_t count)
@@ -201,7 +249,7 @@ enum pointer_type_t get_pointer_type(const const void *pointer)
         return pointer_out_of_heap;
     for (_chunk *curr_chunk = heap.first_chunk; curr_chunk != NULL; curr_chunk = curr_chunk->next_chunk)
     {
-        if (pointer > curr_chunk->next_chunk != NULL ? curr_chunk->next_chunk : (char *)curr_chunk + CHUNK_SIZE + curr_chunk->mem_size)
+        if (pointer > (curr_chunk->next_chunk != NULL ? curr_chunk->next_chunk : (char *)curr_chunk + CHUNK_SIZE + curr_chunk->mem_size))
             continue;
         if (pointer >= (void *)&curr_chunk->fence_left && pointer < curr_chunk + 1)
             return pointer_control_block;

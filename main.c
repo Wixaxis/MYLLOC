@@ -2,15 +2,15 @@
 #include "custom_unistd.h"
 #include "mylloc.h"
 
-
 int main(int argc, char **argv)
 {
 
-	
-    // Tutaj można pisać kod
-    // Zapoznaj się z funkcją main w bloku #if...#endif
-    
-	printf("hello world\n");
+	// Tutaj można pisać kod
+	// Zapoznaj się z funkcją main w bloku #if...#endif
+	heap_setup();
+	int *value = heap_malloc(sizeof(int));
+	*value = 30;
+	printf("hello world\nvalue = %d", *value);
 	return 0;
 }
 
