@@ -87,11 +87,11 @@ enum pointer_type_t
     pointer_valid
 };
 
-enum pointer_type_t get_pointer_type(const const void *pointer);
+enum pointer_type_t get_pointer_type(const void *const pointer);
 
 void *heap_get_data_block_start(const void *pointer);
 
-size_t heap_get_block_size(const const void *memblock);
+size_t heap_get_block_size(const void * const memblock);
 
 int heap_validate(void);
 
@@ -107,5 +107,7 @@ bool split_chunk(_chunk *chunk_to_split, size_t memsize);
 
 _chunk *find_fitting_chunk(size_t to_allocate);
 _chunk *heap_get_last_chunk(_chunk *first_chunk);
+
+unsigned long long distance_from_start(void *ptr);
 
 #endif

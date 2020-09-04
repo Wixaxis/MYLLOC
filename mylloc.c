@@ -201,29 +201,54 @@ void *heap_realloc_debug(void *memblock, size_t size, int fileline, const char *
 
 void *heap_malloc_aligned(size_t count)
 {
-    _chunk *chunk = heap.first_chunk;
-    for (; chunk != NULL; chunk = chunk->next_chunk)
-    {
-        if (chunk->is_free != true || chunk->mem_size < count)
-            continue;
-        if ()
-    }
+    return heap_malloc_aligned_debug(count, 0, NULL);
 }
 void *heap_calloc_aligned(size_t number, size_t size)
 {
+    return heap_calloc_aligned_debug(number, size, 0, NULL);
 }
 void *heap_realloc_aligned(void *memblock, size_t size)
 {
+    return heap_realloc_aligned_debug(memblock, size, 0, NULL);
 }
 
 void *heap_malloc_aligned_debug(size_t count, int fileline, const char *filename)
 {
+    if (count + CHUNK_SIZE < count)
+        return NULL;
+    _chunk *new_chunk = custom_sbrk(SIZE2PAGES(count + CHUNK_SIZE));
+    if (NULL == new_chunk)
+        return NULL;
+    heap.pages_allocated++;
+    set_fences(new_chunk);
+    new_chunk->is_free = true;
+    new_chunk->mem_size = (SIZE2PAGES(count + CHUNK_SIZE) * PAGE_SIZE) - CHUNK_SIZE;
+    new_chunk->prev_chunk = heap_get_last_chunk(heap.first_chunk);
+    new_chunk->prev_chunk->next_chunk = new_chunk;
+    new_chunk->next_chunk = NULL;
+    new_chunk->fileline = fileline;
+    new_chunk->filename = filename;
+    if (new_chunk->mem_size >= count && new_chunk->mem_size <= count + CHUNK_SIZE + sizeof(double))
+        return new_chunk->is_free = false, (void *)new_chunk;
+    split_chunk(new_chunk, count);
+    return new_chunk;
 }
 void *heap_calloc_aligned_debug(size_t number, size_t size, int fileline, const char *filename)
 {
+    void *memory = heap_malloc_aligned_debug(number * size, fileline, filename);
+    if (NULL == memory)
+        return NULL;
+    return memset(memory, 0, number);
 }
 void *heap_realloc_aligned_debug(void *memblock, size_t size, int fileline, const char *filename)
 {
+    if (pointer_valid != get_pointer_type(memblock))
+        return NULL;
+    int old_size = ((_chunk *)memblock - 1)->mem_size;
+    void *memory = heap_malloc_aligned_debug(size, fileline, filename);
+    if (NULL == memory)
+        return NULL;
+    return memcpy(memory, memblock, size > old_size ? old_size : size);
 }
 
 bool block_page_horizon_check(_chunk *chunk)
@@ -287,7 +312,7 @@ uint64_t heap_get_free_gaps_count(void)
     return gaps;
 }
 
-enum pointer_type_t get_pointer_type(const const void *pointer)
+enum pointer_type_t get_pointer_type(const void * const pointer)
 {
     if (NULL == pointer)
         return pointer_null;
@@ -311,7 +336,7 @@ enum pointer_type_t get_pointer_type(const const void *pointer)
 void *heap_get_data_block_start(const void *pointer)
 {
     if (pointer_valid == get_pointer_type(pointer))
-        return pointer;
+        return (void *)pointer;
     if (pointer_inside_data_block == get_pointer_type(pointer))
     {
         for (_chunk *curr_chunk = heap.first_chunk; curr_chunk != NULL; curr_chunk = curr_chunk->next_chunk)
@@ -321,7 +346,7 @@ void *heap_get_data_block_start(const void *pointer)
     return NULL;
 }
 
-size_t heap_get_block_size(const const void *memblock)
+size_t heap_get_block_size(const void * const memblock)
 {
     if (pointer_valid != get_pointer_type(memblock))
         return 0;
@@ -341,7 +366,7 @@ int heap_validate(void)
 
 void heap_dump_debug_information(void)
 {
-    printf("==============\nchunk size: %d\n", CHUNK_SIZE);
+    printf("==============\nchunk size: %ld\n", CHUNK_SIZE);
     for (_chunk *chunk = heap.first_chunk; chunk != NULL; chunk = chunk->next_chunk)
     {
         printf("chunk address: %p\ndistance from start: %llu\nmemory block address: %p\nis free: %s\nmemory block length: %lu\nfilename: %s\nline: ", chunk, distance_from_start((void *)chunk), chunk + 1, chunk->is_free == true ? "YES" : "NO", chunk->mem_size, chunk->filename == NULL ? "UNKNOWN" : chunk->filename);

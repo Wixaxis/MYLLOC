@@ -1,7 +1,14 @@
 #include <stdio.h>
 #include "custom_unistd.h"
 #include "mylloc.h"
+#define MODE 1 //0-Own tests, 1-Teacher's tests
+#if MODE
+#define TEACHER
+#else
+#define SELF
+#endif
 
+#ifdef SELF
 int main(int argc, char **argv)
 {
 
@@ -16,11 +23,13 @@ int main(int argc, char **argv)
 	heap_dump_debug_information();
 	return 0;
 }
+#endif
 
-#if 0
+#ifdef TEACHER
 #include "custom_unistd.h"
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
 	int status = heap_setup();
 	assert(status == 0);
 
@@ -28,14 +37,14 @@ int main(int argc, char **argv) {
 	size_t free_bytes = heap_get_free_space();
 	size_t used_bytes = heap_get_used_space();
 
-	void* p1 = heap_malloc(8 * 1024 * 1024); // 8MB
-	void* p2 = heap_malloc(8 * 1024 * 1024); // 8MB
-	void* p3 = heap_malloc(8 * 1024 * 1024); // 8MB
-	void* p4 = heap_malloc(16 * 1024 * 1024); // 16MB
-	assert(p1 != NULL); // malloc musi się udać
-	assert(p2 != NULL); // malloc musi się udać
-	assert(p3 != NULL); // malloc musi się udać
-	assert(p4 == NULL); // nie ma prawa zadziałać
+	void *p1 = heap_malloc(8 * 1024 * 1024);  // 8MB
+	void *p2 = heap_malloc(8 * 1024 * 1024);  // 8MB
+	void *p3 = heap_malloc(8 * 1024 * 1024);  // 8MB
+	void *p4 = heap_malloc(16 * 1024 * 1024); // 16MB
+	assert(p1 != NULL);						  // malloc musi się udać
+	assert(p2 != NULL);						  // malloc musi się udać
+	assert(p3 != NULL);						  // malloc musi się udać
+	assert(p4 == NULL);						  // nie ma prawa zadziałać
 
 	status = heap_validate();
 	assert(status == 0); // sterta nie może być uszkodzona
@@ -44,11 +53,10 @@ int main(int argc, char **argv) {
 	assert(heap_get_used_blocks_count() == 3);
 
 	// zajęto 24MB sterty; te 2000 bajtów powinno
-    // wystarczyć na wewnętrzne struktury sterty
+	// wystarczyć na wewnętrzne struktury sterty
 	assert(
-        heap_get_used_space() >= 24 * 1024 * 1024 &&
-        heap_get_used_space() <= 24 * 1024 * 1024 + 2000
-        );
+		heap_get_used_space() >= 24 * 1024 * 1024 &&
+		heap_get_used_space() <= 24 * 1024 * 1024 + 2000);
 
 	// zwolnij pamięć
 	heap_free(p1);
