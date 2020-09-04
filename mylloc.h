@@ -41,10 +41,8 @@ typedef struct _chunk_t
 typedef struct _heap_t
 {
     _chunk *first_chunk;
-    _chunk *last_chunk;
     uint64_t fence_sum;
     uint64_t pages_allocated;
-    uint64_t available_space;
     uint64_t chunk_count;
 } _heap;
 
@@ -100,12 +98,13 @@ void heap_dump_debug_information(void);
 
 bool resize_heap_pages(int pages);
 
-void set_chunk(_chunk *chunk, _chunk *prev_chunk, size_t memsize);
+void set_chunk(_chunk *chunk, _chunk *prev_chunk, _chunk *next_chunk, size_t memsize);
 
 void set_fences(_chunk *chunk);
 
 bool split_chunk(_chunk *chunk_to_split, size_t memsize);
 
 _chunk *find_fitting_chunk(size_t to_allocate);
+_chunk *heap_get_last_chunk(_chunk *first_chunk);
 
 #endif

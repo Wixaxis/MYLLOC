@@ -7,10 +7,9 @@ int heap_setup(void)
         return -1;
     pthread_mutex_init(&myllock_mutex, NULL);
     heap.fence_sum = 0;
-    heap.last_chunk = NULL;
     heap.pages_allocated = 1;
     heap.chunk_count = 1;
-    set_chunk(heap.first_chunk, NULL, PAGE_SIZE - CHUNK_SIZE);
+    set_chunk(heap.first_chunk, NULL, NULL, PAGE_SIZE - CHUNK_SIZE);
     return 0;
 }
 
@@ -44,16 +43,16 @@ bool split_chunk(_chunk *chunk_to_split, size_t memsize)
     if (memsize + CHUNK_SIZE + 10 >= chunk_to_split->mem_size)
         return false;
     _chunk *new_chunk = (_chunk *)((char *)CHUNK2MEM(chunk_to_split) + memsize);
-    set_chunk(new_chunk, chunk_to_split, chunk_to_split->mem_size - MEM_SIZE2CHUNK_SIZE(memsize));
+    set_chunk(new_chunk, chunk_to_split, (_chunk *)((char *)new_chunk + CHUNK_SIZE + memsize), chunk_to_split->mem_size - MEM_SIZE2CHUNK_SIZE(memsize));
     chunk_to_split->next_chunk = new_chunk;
     return true;
 }
 
-void set_chunk(_chunk *chunk, _chunk *prev_chunk, size_t memsize)
+void set_chunk(_chunk *chunk, _chunk *prev_chunk, _chunk *next_chunk, size_t memsize)
 {
     chunk->is_free = true;
     chunk->mem_size = memsize;
-    chunk->next_chunk = (_chunk *)((char *)chunk + CHUNK_SIZE + memsize);
+    chunk->next_chunk = next_chunk;
     set_fences(chunk);
     chunk->prev_chunk = prev_chunk;
     heap.chunk_count++;
@@ -65,6 +64,13 @@ void set_fences(_chunk *chunk)
         heap.fence_sum += 2 * (chunk->fence_left.fens[i] = chunk->fence_right.fens[i] = (i % 2 ? 85 : -85));
 }
 
+_chunk *heap_get_last_chunk(_chunk *first_chunk)
+{
+    if (first_chunk->next_chunk == NULL)
+        return first_chunk;
+    return heap_get_last_chunk(first_chunk->next_chunk);
+}
+
 bool resize_heap_pages(int pages)
 {
     if (!pages)
@@ -74,8 +80,21 @@ bool resize_heap_pages(int pages)
         if (custom_sbrk(pages * PAGE_SIZE) == NULL)
             return false;
         heap.pages_allocated += pages;
-        heap.available_space += PAGE_SIZE * pages;
-        heap.last_chunk->mem_size += PAGE_SIZE * pages;
+        _chunk *last_chunk = heap_get_last_chunk(heap.first_chunk);
+        if (last_chunk->is_free == true)
+            last_chunk->mem_size += pages * PAGE_SIZE;
+        else
+        {
+            _chunk *new_chunk = (_chunk *)(((char *)(last_chunk + 1)) + last_chunk->mem_size);
+            set_fences(new_chunk);
+            new_chunk->is_free = true;
+            new_chunk->fileline = 0;
+            new_chunk->filename = NULL;
+            new_chunk->mem_size = PAGE_SIZE - CHUNK_SIZE;
+            new_chunk->prev_chunk = last_chunk;
+            new_chunk->next_chunk = NULL;
+            last_chunk->next_chunk = new_chunk;
+        }
         return true;
     }
     if (heap.pages_allocated < abs(pages))
@@ -85,13 +104,12 @@ bool resize_heap_pages(int pages)
         custom_sbrk(pages * PAGE_SIZE);
         heap.pages_allocated = 0;
         heap.first_chunk = NULL;
-        heap.last_chunk = NULL;
-        heap.available_space = 0;
         return true;
     }
     custom_sbrk(pages * PAGE_SIZE);
     heap.pages_allocated += pages;
-    heap.available_space += pages * PAGE_SIZE;
+    _chunk *last_chunk = heap_get_last_chunk(heap.first_chunk);
+    last_chunk->mem_size += pages * PAGE_SIZE;
     return true;
 }
 
@@ -106,6 +124,9 @@ void heap_free(void *memblock)
     _chunk *chunk = memblock;
     chunk--;
     chunk->is_free = true;
+    _chunk *last_chunk = heap_get_last_chunk(heap.first_chunk);
+    if (last_chunk->is_free && last_chunk->mem_size > PAGE_SIZE)
+        resize_heap_pages(-1);
 }
 
 void coalesce_if_possible(_chunk *chunk)
@@ -134,7 +155,12 @@ void *heap_malloc_debug(size_t count, int fileline, const char *filename)
         return NULL; //unsigned integer overflow detection
     if (heap_get_largest_free_area() < MEM_SIZE2CHUNK_SIZE(count))
     {
-        int needed = MEM_SIZE2CHUNK_SIZE(count) - heap.available_space;
+        int needed = 0;
+        _chunk *last_chunk = heap_get_last_chunk(heap.first_chunk);
+        if (last_chunk->is_free == true)
+            needed = count - last_chunk->mem_size;
+        else
+            needed = count + CHUNK_SIZE;
         resize_heap_pages(SIZE2PAGES(needed));
     }
     _chunk *fitting_chunk = find_fitting_chunk(count);
