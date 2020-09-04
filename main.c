@@ -10,7 +10,10 @@ int main(int argc, char **argv)
 	heap_setup();
 	int *value = heap_malloc(sizeof(int));
 	*value = 30;
-	printf("hello world\nvalue = %d", *value);
+	printf("hello world\nvalue = %d\n", *value);
+	heap_dump_debug_information();
+	heap_free(value);
+	heap_dump_debug_information();
 	return 0;
 }
 

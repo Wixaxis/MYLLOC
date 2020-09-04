@@ -2,6 +2,7 @@
 #define MYLLOC_H
 
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <pthread.h>
 #include <stdbool.h>

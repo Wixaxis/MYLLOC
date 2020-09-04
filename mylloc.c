@@ -45,6 +45,7 @@ bool split_chunk(_chunk *chunk_to_split, size_t memsize)
     _chunk *new_chunk = (_chunk *)((char *)CHUNK2MEM(chunk_to_split) + memsize);
     set_chunk(new_chunk, chunk_to_split, (_chunk *)((char *)new_chunk + CHUNK_SIZE + memsize), chunk_to_split->mem_size - MEM_SIZE2CHUNK_SIZE(memsize));
     chunk_to_split->next_chunk = new_chunk;
+    chunk_to_split->mem_size -= memsize + CHUNK_SIZE;
     return true;
 }
 
@@ -200,6 +201,13 @@ void *heap_realloc_debug(void *memblock, size_t size, int fileline, const char *
 
 void *heap_malloc_aligned(size_t count)
 {
+    _chunk *chunk = heap.first_chunk;
+    for (; chunk != NULL; chunk = chunk->next_chunk)
+    {
+        if (chunk->is_free != true || chunk->mem_size < count)
+            continue;
+        if ()
+    }
 }
 void *heap_calloc_aligned(size_t number, size_t size)
 {
@@ -216,6 +224,18 @@ void *heap_calloc_aligned_debug(size_t number, size_t size, int fileline, const 
 }
 void *heap_realloc_aligned_debug(void *memblock, size_t size, int fileline, const char *filename)
 {
+}
+
+bool block_page_horizon_check(_chunk *chunk)
+{
+    char *block_begin = (char *)(chunk + 1);
+    char *block_end = block_begin + chunk->mem_size;
+    return (distance_from_start(block_begin) / PAGE_SIZE) != (distance_from_start(block_end - 1) / PAGE_SIZE) ? true : false;
+}
+
+unsigned long long distance_from_start(void *ptr)
+{
+    return (unsigned long long)((char *)ptr - (char *)heap.first_chunk);
 }
 
 size_t heap_get_used_space(void)
@@ -271,17 +291,18 @@ enum pointer_type_t get_pointer_type(const const void *pointer)
 {
     if (NULL == pointer)
         return pointer_null;
-    if (heap.first_chunk > pointer || heap.last_chunk + heap.last_chunk->mem_size + CHUNK_SIZE < pointer)
+    _chunk *last_chunk = heap_get_last_chunk(heap.first_chunk);
+    if ((void *)heap.first_chunk > pointer || (void *)((char *)last_chunk + last_chunk->mem_size + CHUNK_SIZE) < pointer)
         return pointer_out_of_heap;
     for (_chunk *curr_chunk = heap.first_chunk; curr_chunk != NULL; curr_chunk = curr_chunk->next_chunk)
     {
-        if (pointer > (curr_chunk->next_chunk != NULL ? curr_chunk->next_chunk : (char *)curr_chunk + CHUNK_SIZE + curr_chunk->mem_size))
+        if (pointer > (curr_chunk->next_chunk != NULL ? (void *)(curr_chunk->next_chunk) : (void *)((char *)curr_chunk + CHUNK_SIZE + curr_chunk->mem_size)))
             continue;
-        if (pointer >= (void *)&curr_chunk->fence_left && pointer < curr_chunk + 1)
+        if (pointer >= (void *)&curr_chunk->fence_left && pointer < (void *)(curr_chunk + 1))
             return pointer_control_block;
-        if (pointer > curr_chunk + 1 && pointer < (char *)curr_chunk + CHUNK_SIZE + curr_chunk->mem_size)
+        if (pointer > (void *)(curr_chunk + 1) && pointer < (void *)((char *)curr_chunk + CHUNK_SIZE + curr_chunk->mem_size))
             return curr_chunk->is_free ? pointer_unallocated : pointer_inside_data_block;
-        if (pointer == curr_chunk + 1)
+        if (pointer == (void *)(curr_chunk + 1))
             return pointer_valid;
     }
     return pointer_out_of_heap;
@@ -294,7 +315,7 @@ void *heap_get_data_block_start(const void *pointer)
     if (pointer_inside_data_block == get_pointer_type(pointer))
     {
         for (_chunk *curr_chunk = heap.first_chunk; curr_chunk != NULL; curr_chunk = curr_chunk->next_chunk)
-            if (pointer > curr_chunk + 1 && pointer < (char *)curr_chunk + CHUNK_SIZE + curr_chunk->mem_size)
+            if (pointer > (void *)(curr_chunk + 1) && pointer < (void *)((char *)curr_chunk + CHUNK_SIZE + curr_chunk->mem_size))
                 return (void *)curr_chunk + 1;
     }
     return NULL;
@@ -303,7 +324,7 @@ void *heap_get_data_block_start(const void *pointer)
 size_t heap_get_block_size(const const void *memblock)
 {
     if (pointer_valid != get_pointer_type(memblock))
-        return NULL;
+        return 0;
     return (size_t)((_chunk *)memblock - 1)->mem_size;
 }
 
@@ -320,4 +341,11 @@ int heap_validate(void)
 
 void heap_dump_debug_information(void)
 {
+    printf("==============\nchunk size: %d\n", CHUNK_SIZE);
+    for (_chunk *chunk = heap.first_chunk; chunk != NULL; chunk = chunk->next_chunk)
+    {
+        printf("chunk address: %p\ndistance from start: %llu\nmemory block address: %p\nis free: %s\nmemory block length: %lu\nfilename: %s\nline: ", chunk, distance_from_start((void *)chunk), chunk + 1, chunk->is_free == true ? "YES" : "NO", chunk->mem_size, chunk->filename == NULL ? "UNKNOWN" : chunk->filename);
+        chunk->fileline == 0 ? printf("UNKNOWN\n--------------\n") : printf("%d\n--------------\n", chunk->fileline);
+    }
+    printf("\nheap size: %lu\nallocated space: %lu\nfree space: %lu\nbiggest free block size: %lu\n==============\n", heap.pages_allocated * PAGE_SIZE, heap_get_used_space(), heap_get_free_space(), heap_get_largest_free_area());
 }
