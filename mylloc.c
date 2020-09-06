@@ -10,7 +10,7 @@ int heap_setup(void)
     pthread_mutex_init(&err_mamutex, NULL);
     feedback("Heap setup starting");
     heap.first_chunk = custom_sbrk(PAGE_SIZE);
-    if (heap.first_chunk == NULL)
+    if (heap.first_chunk == SBRK_FAIL)
         return feedback("sbrk returned NULL, heap setup failed"), -1;
     pthread_mutex_init(&myllock_mutex, NULL);
     heap.fence_sum = 0;
@@ -95,7 +95,7 @@ bool resize_heap_pages(int pages)
         return true;
     if (pages > 0)
     {
-        if (custom_sbrk(pages * PAGE_SIZE) == NULL)
+        if (custom_sbrk(pages * PAGE_SIZE) == SBRK_FAIL)
             return feedback("sbrk returned NULL at page resize"), false;
         heap.pages_allocated += pages;
         _chunk *last_chunk = heap_get_last_chunk(heap.first_chunk);
@@ -119,12 +119,14 @@ bool resize_heap_pages(int pages)
         return false;
     if (heap.pages_allocated == pages)
     {
-        custom_sbrk(pages * PAGE_SIZE);
+        if (SBRK_FAIL == custom_sbrk(pages * PAGE_SIZE))
+            return false;
         heap.pages_allocated = 0;
         heap.first_chunk = NULL;
         return true;
     }
-    custom_sbrk(pages * PAGE_SIZE);
+    if (SBRK_FAIL == custom_sbrk(pages * PAGE_SIZE))
+        return false;
     heap.pages_allocated += pages;
     _chunk *last_chunk = heap_get_last_chunk(heap.first_chunk);
     last_chunk->mem_size += pages * PAGE_SIZE;
@@ -143,9 +145,10 @@ void heap_free(void *memblock)
     chunk--;
     chunk->is_free = true;
     _chunk *last_chunk = heap_get_last_chunk(heap.first_chunk);
-    if (last_chunk->is_free && last_chunk->mem_size > PAGE_SIZE)
-        resize_heap_pages(-1);
     coalesce_if_possible(last_chunk);
+    last_chunk = heap_get_last_chunk(heap.first_chunk);
+    if (last_chunk->is_free && last_chunk->mem_size > PAGE_SIZE)
+        resize_heap_pages(-1 * (last_chunk->mem_size / PAGE_SIZE));
 }
 
 void coalesce_if_possible(_chunk *chunk)
@@ -178,16 +181,18 @@ void *heap_malloc_debug(size_t count, int fileline, const char *filename)
     feedback(err_hub);
     if (count + sizeof(_chunk) < count)
         return feedback("Got too big of a number to allocate"), NULL; //unsigned integer overflow detection
-    if (heap_get_largest_free_area() < MEM_SIZE2CHUNK_SIZE(count))
+    size_t largest_free = heap_get_largest_free_area();
+    if (largest_free < MEM_SIZE2CHUNK_SIZE(count))
     {
-        int needed = 0;
+        size_t needed = 0;
         feedback("No chunk big enough, asking for more pages");
         _chunk *last_chunk = heap_get_last_chunk(heap.first_chunk);
         if (last_chunk->is_free == true)
             needed = count - last_chunk->mem_size;
         else
             needed = count + CHUNK_SIZE;
-        resize_heap_pages(SIZE2PAGES(needed));
+        if (false == resize_heap_pages(SIZE2PAGES(needed)))
+            return NULL;
     }
     _chunk *fitting_chunk = find_fitting_chunk(count);
     if (NULL == fitting_chunk)
@@ -242,7 +247,7 @@ void *heap_malloc_aligned_debug(size_t count, int fileline, const char *filename
     if (count + CHUNK_SIZE < count)
         return NULL;
     _chunk *new_chunk = custom_sbrk(SIZE2PAGES(count + CHUNK_SIZE));
-    if (NULL == new_chunk)
+    if (SBRK_FAIL == new_chunk)
         return NULL;
     heap.pages_allocated++;
     set_fences(new_chunk);

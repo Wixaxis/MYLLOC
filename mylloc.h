@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include "custom_unistd.h"
 
+#define SBRK_FAIL (void *)-1
+
 #define DEBUG
 #ifdef DEBUG
 #include "self_debugger.h"

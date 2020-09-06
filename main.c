@@ -69,8 +69,7 @@ int main(int argc, char **argv)
 	void *p1 = heap_malloc(8 * 1024 * 1024);  // 8MB
 	void *p2 = heap_malloc(8 * 1024 * 1024);  // 8MB
 	void *p3 = heap_malloc(8 * 1024 * 1024);  // 8MB
-	void *p4 = heap_malloc(16 * 1024 * 1024); // 16MB
-	// display_errs();
+	void *p4 = heap_malloc(45 * 1024 * 1024); // 45MB
 	assert(p1 != NULL);						  // malloc musi się udać
 	assert(p2 != NULL);						  // malloc musi się udać
 	assert(p3 != NULL);						  // malloc musi się udać
