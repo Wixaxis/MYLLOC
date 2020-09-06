@@ -3,12 +3,13 @@
 
 #include <pthread.h>
 #include <stdio.h>
+#include <string.h>
 
-#define ERRSIZE 1000
+#define ERRSIZE 10000
 
 struct err_t
 {
-    char ERRTAB[ERRSIZE]; 
+    char ERRTAB[ERRSIZE];
     int errsize;
 } ERRSTR;
 

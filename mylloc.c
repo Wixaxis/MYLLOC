@@ -1,10 +1,17 @@
 #include "mylloc.h"
 
+#ifndef DEBUG
+void feedback(char *msg) { return; }
+void display_errs() { return; }
+#endif
+
 int heap_setup(void)
 {
+    pthread_mutex_init(&err_mamutex, NULL);
+    feedback("Heap setup starting");
     heap.first_chunk = custom_sbrk(PAGE_SIZE);
     if (heap.first_chunk == NULL)
-        return -1;
+        return feedback("sbrk returned NULL, heap setup failed"), -1;
     pthread_mutex_init(&myllock_mutex, NULL);
     heap.fence_sum = 0;
     heap.pages_allocated = 1;
@@ -20,6 +27,9 @@ void *heap_malloc(size_t count)
 
 _chunk *find_fitting_chunk(size_t to_allocate)
 {
+    char err_hub[100] = {0};
+    sprintf(err_hub, "looking for a chunk of size %lu", to_allocate);
+    feedback(err_hub);
     _chunk *curr_chunk = heap.first_chunk;
     for (int i = 0; i < heap.chunk_count; i++, curr_chunk = curr_chunk->next_chunk)
     {
@@ -27,30 +37,37 @@ _chunk *find_fitting_chunk(size_t to_allocate)
             return NULL;
         if (false == curr_chunk->is_free)
             continue;
-        if (curr_chunk->mem_size == to_allocate)
-            return curr_chunk;
+        if (curr_chunk->mem_size <= to_allocate + CHUNK_SIZE + sizeof(double) && curr_chunk->mem_size >= to_allocate)
+            return feedback("found prefect chunk"), curr_chunk;
         if (curr_chunk->mem_size > to_allocate + CHUNK_SIZE + sizeof(double))
         {
             split_chunk(curr_chunk, to_allocate);
-            return curr_chunk;
+            return feedback("found bigger chunk, had to split it"), curr_chunk;
         }
     }
-    return NULL;
+    return feedback("Couldn't find fitting chunk"), NULL;
 }
 
 bool split_chunk(_chunk *chunk_to_split, size_t memsize)
 {
+    char error_hub[100];
+    sprintf(error_hub, "Splitting chunk size %lu of size %lu", chunk_to_split->mem_size, memsize);
+    feedback(error_hub);
     if (memsize + CHUNK_SIZE + 10 >= chunk_to_split->mem_size)
-        return false;
+        return feedback("requested mem size too big for chunk to be splitted"), false;
     _chunk *new_chunk = (_chunk *)((char *)CHUNK2MEM(chunk_to_split) + memsize);
-    set_chunk(new_chunk, chunk_to_split, (_chunk *)((char *)new_chunk + CHUNK_SIZE + memsize), chunk_to_split->mem_size - MEM_SIZE2CHUNK_SIZE(memsize));
+    set_chunk(new_chunk, chunk_to_split, chunk_to_split->next_chunk, chunk_to_split->mem_size - MEM_SIZE2CHUNK_SIZE(memsize));
     chunk_to_split->next_chunk = new_chunk;
-    chunk_to_split->mem_size -= memsize + CHUNK_SIZE;
+    chunk_to_split->mem_size = memsize;
+    sprintf(error_hub, "chunk splitted to %lu and %lu", chunk_to_split->mem_size, chunk_to_split->next_chunk->mem_size);
+    feedback(error_hub);
     return true;
 }
 
 void set_chunk(_chunk *chunk, _chunk *prev_chunk, _chunk *next_chunk, size_t memsize)
 {
+    char err_hub[50] = {0};
+    sprintf(err_hub, "setting chunk of size %lu", memsize);
     chunk->is_free = true;
     chunk->mem_size = memsize;
     chunk->next_chunk = next_chunk;
@@ -79,7 +96,7 @@ bool resize_heap_pages(int pages)
     if (pages > 0)
     {
         if (custom_sbrk(pages * PAGE_SIZE) == NULL)
-            return false;
+            return feedback("sbrk returned NULL at page resize"), false;
         heap.pages_allocated += pages;
         _chunk *last_chunk = heap_get_last_chunk(heap.first_chunk);
         if (last_chunk->is_free == true)
@@ -128,12 +145,15 @@ void heap_free(void *memblock)
     _chunk *last_chunk = heap_get_last_chunk(heap.first_chunk);
     if (last_chunk->is_free && last_chunk->mem_size > PAGE_SIZE)
         resize_heap_pages(-1);
+    coalesce_if_possible(last_chunk);
 }
 
 void coalesce_if_possible(_chunk *chunk)
 {
-    if (chunk == NULL || chunk->is_free == false)
+    if (chunk == NULL)
         return;
+    if (chunk->is_free == false)
+        return coalesce_if_possible(chunk->prev_chunk);
     if (chunk->next_chunk != NULL && chunk->next_chunk->is_free)
     {
         _chunk *to_destroy = chunk->next_chunk;
@@ -141,6 +161,7 @@ void coalesce_if_possible(_chunk *chunk)
         chunk->mem_size += to_destroy->mem_size + CHUNK_SIZE;
         for (int i = 0; i < FENCE_SIZE; i++)
             heap.fence_sum -= to_destroy->fence_left.fens[i] + to_destroy->fence_right.fens[i];
+        heap.chunk_count--;
     }
     coalesce_if_possible(chunk->prev_chunk);
 }
@@ -152,11 +173,15 @@ void *heap_realloc(void *memblock, size_t size)
 
 void *heap_malloc_debug(size_t count, int fileline, const char *filename)
 {
+    char err_hub[200] = {0};
+    sprintf(err_hub, "trying to allocate %lu bytes in line %d", count, fileline);
+    feedback(err_hub);
     if (count + sizeof(_chunk) < count)
-        return NULL; //unsigned integer overflow detection
+        return feedback("Got too big of a number to allocate"), NULL; //unsigned integer overflow detection
     if (heap_get_largest_free_area() < MEM_SIZE2CHUNK_SIZE(count))
     {
         int needed = 0;
+        feedback("No chunk big enough, asking for more pages");
         _chunk *last_chunk = heap_get_last_chunk(heap.first_chunk);
         if (last_chunk->is_free == true)
             needed = count - last_chunk->mem_size;
@@ -312,7 +337,7 @@ uint64_t heap_get_free_gaps_count(void)
     return gaps;
 }
 
-enum pointer_type_t get_pointer_type(const void * const pointer)
+enum pointer_type_t get_pointer_type(const void *const pointer)
 {
     if (NULL == pointer)
         return pointer_null;
@@ -346,7 +371,7 @@ void *heap_get_data_block_start(const void *pointer)
     return NULL;
 }
 
-size_t heap_get_block_size(const void * const memblock)
+size_t heap_get_block_size(const void *const memblock)
 {
     if (pointer_valid != get_pointer_type(memblock))
         return 0;
@@ -372,5 +397,5 @@ void heap_dump_debug_information(void)
         printf("chunk address: %p\ndistance from start: %llu\nmemory block address: %p\nis free: %s\nmemory block length: %lu\nfilename: %s\nline: ", chunk, distance_from_start((void *)chunk), chunk + 1, chunk->is_free == true ? "YES" : "NO", chunk->mem_size, chunk->filename == NULL ? "UNKNOWN" : chunk->filename);
         chunk->fileline == 0 ? printf("UNKNOWN\n--------------\n") : printf("%d\n--------------\n", chunk->fileline);
     }
-    printf("\nheap size: %lu\nallocated space: %lu\nfree space: %lu\nbiggest free block size: %lu\n==============\n", heap.pages_allocated * PAGE_SIZE, heap_get_used_space(), heap_get_free_space(), heap_get_largest_free_area());
+    printf("\nheap size: %lu\nallocated space: %lu + ( %lu )\nfree space: %lu\nbiggest free block size: %lu\n==============\n", heap.pages_allocated * PAGE_SIZE, heap_get_used_space(), heap.chunk_count * CHUNK_SIZE, heap_get_free_space(), heap_get_largest_free_area());
 }

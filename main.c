@@ -19,7 +19,36 @@ int main(int argc, char **argv)
 	*value = 30;
 	printf("hello world\nvalue = %d\n", *value);
 	heap_dump_debug_information();
+	int *pile1 = heap_malloc(sizeof(int) * 100);
+	if (NULL != pile1)
+		for (int i = 0; i < 100; i++)
+			pile1[i] = i;
+	else
+		printf("allocating pile1 of size 100 (int) failed :c\n");
+	double *pile2 = heap_malloc(sizeof(double) * 100);
+	if (NULL != pile2)
+		for (int i = 0; i < 100; i++)
+			pile2[i] = 0.678 - i;
+	else
+		printf("allocating pile2 of size 100 (double) failed :c\n");
+
+	if (NULL != pile1)
+		for (int i = 0; i < 100; i++)
+			printf("%d ", pile1[i]);
+	printf("\n");
+	if (NULL != pile2)
+		for (int i = 0; i < 100; i++)
+			printf("%lf ", pile2[i]);
+	printf("\n");
+	if (NULL != pile1)
+		for (int i = 0; i < 100; i++)
+			printf("%d ", pile1[i]);
+	printf("\n");
 	heap_free(value);
+	display_errs();
+	heap_dump_debug_information();
+	heap_free(pile1);
+	heap_free(pile2);
 	heap_dump_debug_information();
 	return 0;
 }
@@ -41,6 +70,7 @@ int main(int argc, char **argv)
 	void *p2 = heap_malloc(8 * 1024 * 1024);  // 8MB
 	void *p3 = heap_malloc(8 * 1024 * 1024);  // 8MB
 	void *p4 = heap_malloc(16 * 1024 * 1024); // 16MB
+	// display_errs();
 	assert(p1 != NULL);						  // malloc musi się udać
 	assert(p2 != NULL);						  // malloc musi się udać
 	assert(p3 != NULL);						  // malloc musi się udać

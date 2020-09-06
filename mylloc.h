@@ -10,6 +10,14 @@
 #include <stdlib.h>
 #include "custom_unistd.h"
 
+#define DEBUG
+#ifdef DEBUG
+#include "self_debugger.h"
+#else
+void feedback(char *msg);
+void display_errs();
+#endif
+
 #define FENCE_SIZE 25
 #define KB_SIZE 1024
 #define PAGE_SIZE (4 * KB_SIZE)
@@ -91,7 +99,7 @@ enum pointer_type_t get_pointer_type(const void *const pointer);
 
 void *heap_get_data_block_start(const void *pointer);
 
-size_t heap_get_block_size(const void * const memblock);
+size_t heap_get_block_size(const void *const memblock);
 
 int heap_validate(void);
 
@@ -109,5 +117,7 @@ _chunk *find_fitting_chunk(size_t to_allocate);
 _chunk *heap_get_last_chunk(_chunk *first_chunk);
 
 unsigned long long distance_from_start(void *ptr);
+
+void coalesce_if_possible(_chunk *chunk);
 
 #endif
