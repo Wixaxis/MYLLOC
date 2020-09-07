@@ -30,6 +30,7 @@ void display_errs();
 #define MEM2CHUNK(PTR) (((_chunk *)PTR) - 1)
 #define CHUNK2MEM(PTR) ((void *)(((_chunk *)PTR) + 1))
 #define SIZE2PAGES(SIZE) (SIZE / PAGE_SIZE + !!(SIZE % PAGE_SIZE))
+#define MAX(FIRST, SECOND) ((FIRST) > (SECOND) ? FIRST : SECOND)
 
 typedef struct _fence
 {
@@ -65,8 +66,10 @@ int heap_setup(void);
 
 void *heap_malloc(size_t count);
 void *heap_calloc(size_t number, size_t size);
-void heap_free(void *memblock);
 void *heap_realloc(void *memblock, size_t size);
+
+void heap_free(void *memblock);
+void heap_free_all(void);
 
 void *heap_malloc_debug(size_t count, int fileline, const char *filename);
 void *heap_calloc_debug(size_t number, size_t size, int fileline, const char *filename);
@@ -121,5 +124,9 @@ _chunk *heap_get_last_chunk(_chunk *first_chunk);
 unsigned long long distance_from_start(void *ptr);
 
 void coalesce_if_possible(_chunk *chunk);
+
+int has_page_horison_innit(_chunk *chunk);
+
+_chunk *find_fitting_chunk_aligned(size_t to_allocate);
 
 #endif

@@ -7,6 +7,8 @@ void display_errs() { return; }
 
 int heap_setup(void)
 {
+    if (heap.first_chunk != NULL)
+        return -1;
     pthread_mutex_init(&err_mamutex, NULL);
     feedback("Heap setup starting");
     heap.first_chunk = custom_sbrk(PAGE_SIZE);
@@ -151,6 +153,18 @@ void heap_free(void *memblock)
         resize_heap_pages(-1 * (last_chunk->mem_size / PAGE_SIZE));
 }
 
+void heap_free_all(void)
+{
+    _chunk *chunk = heap.first_chunk;
+    while (chunk != NULL)
+    {
+        _chunk *next_chunk = chunk->next_chunk;
+        if (chunk->is_free == false)
+            heap_free(CHUNK2MEM(chunk));
+        chunk = next_chunk;
+    }
+}
+
 void coalesce_if_possible(_chunk *chunk)
 {
     if (chunk == NULL)
@@ -222,9 +236,11 @@ void *heap_realloc_debug(void *memblock, size_t size, int fileline, const char *
         if (NULL == chunk)
             return NULL;
     }
-    memcpy(chunk + 1, memblock, size);
+    split_chunk(chunk, size);
+    memcpy(chunk + 1, memblock, size < MEM2CHUNK(memblock)->mem_size ? size : MEM2CHUNK(memblock)->mem_size);
     chunk->fileline = fileline;
     chunk->filename = filename;
+    chunk->is_free = false;
     heap_free(memblock);
     return chunk + 1;
 }
@@ -242,26 +258,45 @@ void *heap_realloc_aligned(void *memblock, size_t size)
     return heap_realloc_aligned_debug(memblock, size, 0, NULL);
 }
 
+_chunk *find_fitting_chunk_aligned(size_t to_allocate)
+{
+    _chunk *point = heap.first_chunk;
+    for (int i = 0; i < heap.pages_allocated; i++)
+    {
+        enum pointer_type_t type = get_pointer_type((void *)point);
+        if (pointer_unallocated != type)
+            continue;
+        _chunk *chunk = (_chunk *)heap_get_data_block_start((void *)point) - 1;
+        long left_space = (long)((char *)point - (char *)(chunk + 1));
+        long right_space = chunk->mem_size - left_space;
+        if (to_allocate < right_space && left_space > CHUNK_SIZE + sizeof(double))
+        {
+            split_chunk(chunk, left_space - CHUNK_SIZE - sizeof(double));
+            _chunk *new_chunk = MEM2CHUNK(point);
+            new_chunk->is_free = true;
+            if (right_space > to_allocate + CHUNK_SIZE + sizeof(double))
+            {
+                split_chunk(new_chunk, to_allocate);
+                return new_chunk;
+            }
+            return new_chunk;
+        }
+    }
+    if (false == resize_heap_pages(SIZE2PAGES(to_allocate + CHUNK_SIZE + sizeof(double))))
+        return NULL;
+    return find_fitting_chunk_aligned(to_allocate);
+}
+
 void *heap_malloc_aligned_debug(size_t count, int fileline, const char *filename)
 {
     if (count + CHUNK_SIZE < count)
         return NULL;
-    _chunk *new_chunk = custom_sbrk(SIZE2PAGES(count + CHUNK_SIZE));
-    if (SBRK_FAIL == new_chunk)
+    _chunk *chunk = find_fitting_chunk_aligned(count);
+    if (NULL == chunk)
         return NULL;
-    heap.pages_allocated++;
-    set_fences(new_chunk);
-    new_chunk->is_free = true;
-    new_chunk->mem_size = (SIZE2PAGES(count + CHUNK_SIZE) * PAGE_SIZE) - CHUNK_SIZE;
-    new_chunk->prev_chunk = heap_get_last_chunk(heap.first_chunk);
-    new_chunk->prev_chunk->next_chunk = new_chunk;
-    new_chunk->next_chunk = NULL;
-    new_chunk->fileline = fileline;
-    new_chunk->filename = filename;
-    if (new_chunk->mem_size >= count && new_chunk->mem_size <= count + CHUNK_SIZE + sizeof(double))
-        return new_chunk->is_free = false, (void *)new_chunk;
-    split_chunk(new_chunk, count);
-    return new_chunk;
+    chunk->fileline = fileline;
+    chunk->filename = filename;
+    return chunk;
 }
 void *heap_calloc_aligned_debug(size_t number, size_t size, int fileline, const char *filename)
 {
