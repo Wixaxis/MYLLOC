@@ -27,18 +27,17 @@ int run_tests(void)
 
     succ += !!test_malloc_aligned();
     printf("\n\n");
-    //display_errs();
+    // display_errs();
     empty_feed();
 
     succ += !!test_calloc_aligned();
     printf("\n\n");
-    //display_errs();
+    // display_errs();
     empty_feed();
-    heaps_dont_lie = 1;
+
     succ += !!test_realloc_aligned();
-    heaps_dont_lie = 0;
     printf("\n\n");
-    //display_errs();
+    // display_errs();
     empty_feed();
 
     succ += !!test_get_used_space();
@@ -281,7 +280,7 @@ bool test_malloc_aligned(void)
     if (NULL == ptr1)
         return destroy_heap(), printf("ALLOCATION FAILED"), false;
     if (pointer_valid != get_pointer_type(ptr1) || (intptr_t)ptr1 & (intptr_t)(PAGE_SIZE - 1))
-        return destroy_heap(), printf("block not at the beginning of page! FAIL"), false;
+        return destroy_heap(), printf("block not at the beginning of page! FAIL %ld bytes off", (intptr_t)ptr1 & (intptr_t)(PAGE_SIZE - 1)), false;
     heap_show_short_alignment();
     printf("Allocating next 20... ");
     void *ptr2 = heap_malloc_aligned(20);
@@ -289,7 +288,7 @@ bool test_malloc_aligned(void)
     if (NULL == ptr2)
         return destroy_heap(), printf("ALLOCATION FAILED"), false;
     if (pointer_valid != get_pointer_type(ptr2) || (intptr_t)ptr2 & (intptr_t)(PAGE_SIZE - 1))
-        return destroy_heap(), printf("block not at the beginning of page! FAIL"), false;
+        return destroy_heap(), printf("block not at the beginning of page! FAIL %ld bytes off", (intptr_t)ptr2 & (intptr_t)(PAGE_SIZE - 1)), false;
     heap_show_short_alignment();
     printf("Free first alloc...");
     heap_free(ptr1);
@@ -309,7 +308,7 @@ bool test_calloc_aligned(void)
     if (NULL == ptr1)
         return destroy_heap(), printf("ALLOCATION FAILED"), false;
     if (pointer_valid != get_pointer_type(ptr1) || (intptr_t)ptr1 & (intptr_t)(PAGE_SIZE - 1))
-        return destroy_heap(), printf("block not at the beginning of page! FAIL"), false;
+        return destroy_heap(), printf("block not at the beginning of page! FAIL %ld bytes off", (intptr_t)ptr1 & (intptr_t)(PAGE_SIZE - 1)), false;
     for (int i = 0; i < 20; i++)
         if (ptr1[i])
             return destroy_heap(), printf("block not empty! FAIL"), false;
@@ -320,7 +319,7 @@ bool test_calloc_aligned(void)
     if (NULL == ptr2)
         return destroy_heap(), printf("ALLOCATION FAILED"), false;
     if (pointer_valid != get_pointer_type(ptr2) || (intptr_t)ptr2 & (intptr_t)(PAGE_SIZE - 1))
-        return destroy_heap(), printf("block not at the beginning of page! FAIL"), false;
+        return destroy_heap(), printf("block not at the beginning of page! FAIL %ld bytes off", (intptr_t)ptr2 & (intptr_t)(PAGE_SIZE - 1)), false;
     for (int i = 0; i < 20; i++)
         if (ptr2[i])
             return destroy_heap(), printf("block not empty! FAIL"), false;

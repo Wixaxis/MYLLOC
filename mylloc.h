@@ -139,4 +139,6 @@ int has_page_horison_innit(_chunk *chunk);
 
 _chunk *find_fitting_chunk_aligned(size_t to_allocate);
 
+bool is_pointer_aligned(void *ptr);
+
 #endif

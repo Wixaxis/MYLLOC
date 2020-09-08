@@ -289,6 +289,8 @@ _chunk *find_fitting_chunk_aligned(size_t to_allocate)
     for (int i = 0; i < heap.pages_allocated; i++)
     {
         char *point = (char *)heap.first_chunk + i * PAGE_SIZE;
+        if (false == is_pointer_aligned(point))
+            feedback("SOMETHING IS TERRIBLY WRONG");
         sprintf(err_tab, "looking on page %d", i);
         feedback(err_tab);
         enum pointer_type_t type = get_pointer_type((void *)point);
@@ -333,7 +335,7 @@ void *heap_malloc_aligned_debug(size_t count, int fileline, const char *filename
     chunk->fileline = fileline;
     chunk->filename = filename;
     chunk->is_free = false;
-    return MYLOCK(unlock), chunk;
+    return MYLOCK(unlock), CHUNK2MEM(chunk);
 }
 void *heap_calloc_aligned_debug(size_t number, size_t size, int fileline, const char *filename)
 {
@@ -348,7 +350,10 @@ void *heap_realloc_aligned_debug(void *memblock, size_t size, int fileline, cons
         return heap_malloc_aligned_debug(size, fileline, filename);
     if (pointer_valid != get_pointer_type(memblock))
         return feedback("pointer not valid!"), NULL;
-    int old_size = ((_chunk *)memblock - 1)->mem_size;
+    long old_size = ((_chunk *)memblock - 1)->mem_size;
+    char err_tab[100];
+    sprintf(err_tab, "asking malloc aligned for %ld bytes", size);
+    feedback(err_tab);
     void *memory = heap_malloc_aligned_debug(size, fileline, filename);
     if (NULL == memory)
         return feedback("Malloc aligned returned NULL"), NULL;
@@ -493,3 +498,5 @@ void heap_dump_debug_information(void)
     printf("\nheap size: %lu\nallocated space: %lu + ( %lu )\nfree space: %lu\nbiggest free block size: %lu\n==============\n", heap.pages_allocated * PAGE_SIZE, heap_get_used_space(), heap.chunk_count * CHUNK_SIZE, heap_get_free_space(), heap_get_largest_free_area());
     MYLOCK(unlock);
 }
+
+bool is_pointer_aligned(void *ptr) { return ((intptr_t)ptr & (intptr_t)(PAGE_SIZE - 1)) == 0 ? true : false; }
