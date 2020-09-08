@@ -12,7 +12,7 @@
 
 #define SBRK_FAIL (void *)-1
 
-// #define DEBUG
+#define DEBUG
 #ifdef DEBUG
 #include "self_debugger.h"
 #else
@@ -22,7 +22,7 @@ void empty_feed(void);
 void feed_init(void);
 #endif
 
-#define FENCE_SIZE 25
+#define FENCE_SIZE 26
 #define KB_SIZE 1024
 #define PAGE_SIZE (4 * KB_SIZE)
 #define CHUNK_SIZE (sizeof(_chunk))
@@ -61,7 +61,7 @@ typedef struct _chunk_t
 typedef struct _heap_t
 {
     _chunk *first_chunk;
-    uint64_t fence_sum;
+    long long fence_sum;
     uint64_t pages_allocated;
     uint64_t chunk_count;
 } _heap;

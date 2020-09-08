@@ -245,6 +245,8 @@ void *heap_calloc_debug(size_t number, size_t size, int fileline, const char *fi
 }
 void *heap_realloc_debug(void *memblock, size_t size, int fileline, const char *filename)
 {
+    if (NULL == memblock)
+        return heap_malloc_debug(size, fileline, filename);
     if (pointer_valid != get_pointer_type(memblock))
         return NULL;
     MYLOCK(lock);
@@ -342,12 +344,14 @@ void *heap_calloc_aligned_debug(size_t number, size_t size, int fileline, const 
 }
 void *heap_realloc_aligned_debug(void *memblock, size_t size, int fileline, const char *filename)
 {
+    if (NULL == memblock)
+        return heap_malloc_aligned_debug(size, fileline, filename);
     if (pointer_valid != get_pointer_type(memblock))
-        return NULL;
+        return feedback("pointer not valid!"), NULL;
     int old_size = ((_chunk *)memblock - 1)->mem_size;
     void *memory = heap_malloc_aligned_debug(size, fileline, filename);
     if (NULL == memory)
-        return NULL;
+        return feedback("Malloc aligned returned NULL"), NULL;
     MYLOCK(lock);
     memcpy(memory, memblock, size > old_size ? old_size : size);
     MEM2CHUNK(memblock)->is_free = true;
@@ -465,10 +469,13 @@ size_t heap_get_block_size(const void *const memblock)
 int heap_validate(void)
 {
     MYLOCK(lock);
-    long current_sum = 0;
+    long long current_sum = 0;
     for (_chunk *curr_chunk = heap.first_chunk; curr_chunk != NULL; curr_chunk = curr_chunk->next_chunk)
         for (int i = 0; i < FENCE_SIZE; i++)
             current_sum += curr_chunk->fence_left.fens[i] + curr_chunk->fence_right.fens[i];
+    char err_tab[100];
+    sprintf(err_tab, "curr sum %lld, heap sum %lld", current_sum, heap.fence_sum);
+    feedback(err_tab);
     if (current_sum != heap.fence_sum)
         return MYLOCK(unlock), -1;
     return MYLOCK(unlock), 0;

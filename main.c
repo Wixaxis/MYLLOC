@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include "custom_unistd.h"
 #include "mylloc.h"
-#define MODE 1 //0-Own tests, 1-Teacher's tests
+#include "unit_tests.h"
+#define MODE 0 //0-Own tests, 1-Teacher's tests
 #if MODE
 #define TEACHER
 #else
@@ -11,45 +12,9 @@
 #ifdef SELF
 int main(int argc, char **argv)
 {
-
 	// Tutaj można pisać kod
 	// Zapoznaj się z funkcją main w bloku #if...#endif
-	heap_setup();
-	int *value = heap_malloc(sizeof(int));
-	*value = 30;
-	printf("hello world\nvalue = %d\n", *value);
-	heap_dump_debug_information();
-	int *pile1 = heap_malloc(sizeof(int) * 100);
-	if (NULL != pile1)
-		for (int i = 0; i < 100; i++)
-			pile1[i] = i;
-	else
-		printf("allocating pile1 of size 100 (int) failed :c\n");
-	double *pile2 = heap_malloc(sizeof(double) * 100);
-	if (NULL != pile2)
-		for (int i = 0; i < 100; i++)
-			pile2[i] = 0.678 - i;
-	else
-		printf("allocating pile2 of size 100 (double) failed :c\n");
-
-	if (NULL != pile1)
-		for (int i = 0; i < 100; i++)
-			printf("%d ", pile1[i]);
-	printf("\n");
-	if (NULL != pile2)
-		for (int i = 0; i < 100; i++)
-			printf("%lf ", pile2[i]);
-	printf("\n");
-	if (NULL != pile1)
-		for (int i = 0; i < 100; i++)
-			printf("%d ", pile1[i]);
-	printf("\n");
-	heap_free(value);
-	display_errs();
-	heap_dump_debug_information();
-	heap_free(pile1);
-	heap_free(pile2);
-	heap_dump_debug_information();
+	printf("\n Tests succeeded %d", run_tests());
 	return 0;
 }
 #endif

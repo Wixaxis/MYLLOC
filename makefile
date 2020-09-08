@@ -1,9 +1,6 @@
 CC=gcc
 output=main
-test_output=test
-files=main.c mylloc.c memmanager.c self_debugger.c 
-test_files=unit_tests.c mylloc.c memmanager.c self_debugger.c 
-no_self_debug_files=unit_tests.c mylloc.c memmanager.c
+files=main.c mylloc.c memmanager.c self_debugger.c unit_tests.c
 debugger=gdb
 flags=-g -O0 -pthread -Wall
 
@@ -16,9 +13,10 @@ run:
 debug:
 	$(debugger) ./$(output)
 
-test:
-	$(CC) $(flags) -o $(test_output) $(test_files)
+update:
+	git pull
 
-noselfdebug:
-	$(CC) $(flags) -o $(test_output) $(no_self_debug_files)
-
+quick_push:
+	git add *
+	git commit -m 'quick update'
+	git push

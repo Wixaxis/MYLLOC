@@ -1,46 +1,106 @@
 #include "unit_tests.h"
 
-int main(void)
+int heaps_dont_lie = 0;
+
+int run_tests(void)
 {
-    test_heap_setup();
+    int succ = 0;
+    succ += !!test_heap_setup();
     printf("\n\n");
-    display_errs();
+    //display_errs();
     empty_feed();
 
-    test_malloc_and_free();
+    succ += !!test_malloc_and_free();
     printf("\n\n");
-    display_errs();
+    //display_errs();
     empty_feed();
 
-    test_calloc();
+    succ += !!test_calloc();
     printf("\n\n");
-    display_errs();
+    //display_errs();
     empty_feed();
 
-    test_realloc();
+    succ += !!test_realloc();
     printf("\n\n");
-    display_errs();
+    //display_errs();
     empty_feed();
 
-    test_malloc_aligned();
+    succ += !!test_malloc_aligned();
     printf("\n\n");
-    display_errs();
+    //display_errs();
     empty_feed();
 
-    test_calloc_aligned();
+    succ += !!test_calloc_aligned();
     printf("\n\n");
-    display_errs();
+    //display_errs();
+    empty_feed();
+    heaps_dont_lie = 1;
+    succ += !!test_realloc_aligned();
+    heaps_dont_lie = 0;
+    printf("\n\n");
+    //display_errs();
     empty_feed();
 
-    return 0;
+    succ += !!test_get_used_space();
+    printf("\n\n");
+    // display_errs();
+    empty_feed();
+
+    succ += !!test_get_largest_used_block_size();
+    printf("\n\n");
+    //display_errs();
+    empty_feed();
+
+    succ += !!test_get_used_blocks_count();
+    printf("\n\n");
+    //display_errs();
+    empty_feed();
+
+    succ += !!test_get_free_space();
+    printf("\n\n");
+    //display_errs();
+    empty_feed();
+
+    succ += !!test_get_largest_free_area();
+    printf("\n\n");
+    //display_errs();
+    empty_feed();
+
+    succ += !!test_get_free_gaps_count();
+    printf("\n\n");
+    //display_errs();
+    empty_feed();
+
+    succ += !!test_get_pointer_type();
+    printf("\n\n");
+    //display_errs();
+    empty_feed();
+
+    succ += !!test_get_data_block_start();
+    printf("\n\n");
+    //display_errs();
+    empty_feed();
+
+    succ += !!test_get_block_size();
+    printf("\n\n");
+    //display_errs();
+    empty_feed();
+
+    succ += !!test_validate();
+    printf("\n\n");
+    // display_errs();
+    empty_feed();
+
+    printf("SUCCESSS IN %d out of 17\n", succ);
+
+    return succ;
 }
 void destroy_heap(void)
 {
     if (heap.first_chunk == NULL)
         return;
+    // memset(heap.first_chunk, 0, heap.pages_allocated * PAGE_SIZE);
     heap_free_all();
-    memset(heap.first_chunk, 0, heap.pages_allocated * PAGE_SIZE);
-    custom_sbrk(-1 * heap.pages_allocated);
     heap.chunk_count = 0;
     heap.fence_sum = 0;
     heap.first_chunk = NULL;
@@ -48,6 +108,8 @@ void destroy_heap(void)
 }
 void heap_show_short(void)
 {
+    if (heaps_dont_lie == 0)
+        return;
     printf("HEAP:\n");
     if (heap.first_chunk == NULL)
         return (void)printf("[heap empty]\n");
@@ -59,6 +121,8 @@ void heap_show_short(void)
 
 void heap_show_short_alignment(void)
 {
+    if (heaps_dont_lie == 0)
+        return;
     printf("HEAP:\n");
     if (heap.first_chunk == NULL)
         return (void)printf("[heap empty]\n");
@@ -216,16 +280,16 @@ bool test_malloc_aligned(void)
     heap_show_short_alignment();
     if (NULL == ptr1)
         return destroy_heap(), printf("ALLOCATION FAILED"), false;
-    // if (pointer_valid != get_pointer_type(ptr1) || 0 != (distance_from_start(ptr1) % (PAGE_SIZE)))
-    //     return destroy_heap(), printf("block not at the beginning of page! FAIL"), false;
+    if (pointer_valid != get_pointer_type(ptr1) || (intptr_t)ptr1 & (intptr_t)(PAGE_SIZE - 1))
+        return destroy_heap(), printf("block not at the beginning of page! FAIL"), false;
     heap_show_short_alignment();
     printf("Allocating next 20... ");
     void *ptr2 = heap_malloc_aligned(20);
     heap_show_short_alignment();
     if (NULL == ptr2)
         return destroy_heap(), printf("ALLOCATION FAILED"), false;
-    // if (pointer_valid != get_pointer_type(ptr2) || distance_from_start(ptr2) % (PAGE_SIZE))
-    //     return destroy_heap(), printf("block not at the beginning of page! FAIL"), false;
+    if (pointer_valid != get_pointer_type(ptr2) || (intptr_t)ptr2 & (intptr_t)(PAGE_SIZE - 1))
+        return destroy_heap(), printf("block not at the beginning of page! FAIL"), false;
     heap_show_short_alignment();
     printf("Free first alloc...");
     heap_free(ptr1);
@@ -244,8 +308,8 @@ bool test_calloc_aligned(void)
     heap_show_short_alignment();
     if (NULL == ptr1)
         return destroy_heap(), printf("ALLOCATION FAILED"), false;
-    // if (pointer_valid != get_pointer_type(ptr1) || distance_from_start(ptr1) % (PAGE_SIZE))
-    //     return destroy_heap(), printf("block not at the beginning of page! FAIL"), false;
+    if (pointer_valid != get_pointer_type(ptr1) || (intptr_t)ptr1 & (intptr_t)(PAGE_SIZE - 1))
+        return destroy_heap(), printf("block not at the beginning of page! FAIL"), false;
     for (int i = 0; i < 20; i++)
         if (ptr1[i])
             return destroy_heap(), printf("block not empty! FAIL"), false;
@@ -255,8 +319,8 @@ bool test_calloc_aligned(void)
     heap_show_short_alignment();
     if (NULL == ptr2)
         return destroy_heap(), printf("ALLOCATION FAILED"), false;
-    // if (pointer_valid != get_pointer_type(ptr2) || (distance_from_start(ptr2) % (PAGE_SIZE)) != 0)
-    //     return destroy_heap(), printf("block not at the beginning of page! FAIL"), false;
+    if (pointer_valid != get_pointer_type(ptr2) || (intptr_t)ptr2 & (intptr_t)(PAGE_SIZE - 1))
+        return destroy_heap(), printf("block not at the beginning of page! FAIL"), false;
     for (int i = 0; i < 20; i++)
         if (ptr2[i])
             return destroy_heap(), printf("block not empty! FAIL"), false;
@@ -270,7 +334,32 @@ bool test_calloc_aligned(void)
 }
 bool test_realloc_aligned(void)
 {
-
+    printf("REALLOC ALIGNED TEST Starting...");
+    if (heap_setup())
+        return printf("heap_setup failed. Test aborted\n"), false;
+    printf(" Heap set... Allocating 20 bytes...");
+    void *pointer = heap_malloc_aligned(20);
+    if (NULL == pointer)
+        return destroy_heap(), printf("ALLOCATION FAILED!"), false;
+    heap_show_short();
+    printf("Reallocating 20 to 30 bytes... ");
+    void *second_pointer = heap_realloc_aligned(pointer, 30);
+    if (NULL == second_pointer)
+        return destroy_heap(), printf("REALLOCATION FAILED!"), false;
+    heap_show_short();
+    printf("Allocating new 20... ");
+    void *third_pointer = heap_malloc_aligned(20);
+    if (NULL == third_pointer)
+        return destroy_heap(), printf("ALLOCATION FAILED!"), false;
+    heap_show_short();
+    printf("free 20 bytes and reallocate 30->5 bytes... ");
+    heap_free(third_pointer);
+    third_pointer = heap_realloc(second_pointer, 5);
+    if (NULL == third_pointer)
+        return destroy_heap(), printf("REALLOCATION FAILED!"), false;
+    heap_show_short();
+    destroy_heap();
+    printf("REALLOC TEST SUCCESS\n");
     return true;
 }
 
@@ -311,7 +400,6 @@ bool test_get_largest_used_block_size(void)
     void *ptr1, *ptr2, *ptr3;
     if (heap_get_largest_used_block_size() != 0)
         return false;
-    return false;
     ptr1 = heap_malloc(20);
     if (heap_get_largest_used_block_size() != 20)
         return false;
@@ -339,7 +427,6 @@ bool test_get_used_blocks_count(void)
     void *ptr1, *ptr2, *ptr3;
     if (heap_get_used_blocks_count() != 0)
         return false;
-    return false;
     ptr1 = heap_malloc(20);
     if (heap_get_used_blocks_count() != 1)
         return false;
@@ -367,7 +454,6 @@ bool test_get_free_space(void)
     void *ptr1, *ptr2, *ptr3;
     if (heap_get_free_space() != PAGE_SIZE - CHUNK_SIZE)
         return false;
-    return false;
     ptr1 = heap_malloc(20);
     if (heap_get_free_space() != PAGE_SIZE - CHUNK_SIZE * 2 - 20)
         return false;
@@ -382,41 +468,119 @@ bool test_get_free_space(void)
 }
 bool test_get_largest_free_area(void)
 {
-
-    return true;
+    printf("GET LARGEST FREE AREA TEST Starting...");
+    if (heap_setup())
+        return printf("heap_setup failed. Test aborted\n"), false;
+    printf(" Heap set... ");
+    void *ptr1, *ptr2, *ptr3;
+    if (heap_get_largest_free_area() != PAGE_SIZE - CHUNK_SIZE)
+        return false;
+    ptr1 = heap_malloc(20);
+    if (heap_get_largest_free_area() != PAGE_SIZE - CHUNK_SIZE * 2 - 20)
+        return false;
+    ptr2 = heap_calloc(40, 1);
+    if (heap_get_largest_free_area() != PAGE_SIZE - CHUNK_SIZE * 3 - 20 - 40)
+        return false;
+    ptr3 = heap_malloc(100);
+    if (heap_get_largest_free_area() != PAGE_SIZE - CHUNK_SIZE * 4 - 20 - 40 - 100)
+        return false;
+    destroy_heap();
+    return printf("SUCCESS\n"), true;
 }
 bool test_get_free_gaps_count(void)
 {
-
-    return true;
+    printf("GET FREE SPACE TEST Starting...");
+    if (heap_setup())
+        return printf("heap_setup failed. Test aborted\n"), false;
+    printf(" Heap set... ");
+    void *ptr1, *ptr2, *ptr3;
+    if (heap_get_free_gaps_count() != 1)
+        return false;
+    ptr1 = heap_malloc(20);
+    ptr2 = heap_calloc(40, sizeof(double));
+    ptr3 = heap_malloc(100);
+    heap_free(ptr2);
+    if (heap_get_free_gaps_count() != 2)
+        return false;
+    destroy_heap();
+    return printf("SUCCESS\n"), true;
 }
 
-bool test_get_pointer_type(const void *const pointer)
+bool test_get_pointer_type(void)
 {
-
-    return true;
+    printf("GET POINTER TYPE TEST Starting...");
+    if (heap_setup())
+        return printf("heap_setup failed. Test aborted\n"), false;
+    printf(" Heap set... ");
+    char *ptr = (char *)heap.first_chunk;
+    if (pointer_control_block != get_pointer_type(ptr + 5))
+        return false;
+    if (pointer_null != get_pointer_type(NULL))
+        return false;
+    if (pointer_out_of_heap != get_pointer_type(ptr - 20))
+        return false;
+    if (pointer_out_of_heap != get_pointer_type(ptr + PAGE_SIZE * 2))
+        return false;
+    if (pointer_unallocated != get_pointer_type(ptr + CHUNK_SIZE + 5))
+        return false;
+    void *ptr2 = heap_malloc(sizeof(int));
+    if (pointer_valid != get_pointer_type(ptr2))
+        return false;
+    if (pointer_inside_data_block != get_pointer_type((char *)ptr2 + sizeof(int) / 2))
+        return false;
+    destroy_heap();
+    return printf("SUCCESS\n"), true;
 }
 
-bool test_get_data_block_start(const void *pointer)
+bool test_get_data_block_start(void)
 {
-
-    return true;
+    printf("GET DATA BLOCK START TEST Starting...");
+    if (heap_setup())
+        return printf("heap_setup failed. Test aborted\n"), false;
+    printf(" Heap set... ");
+    int *ptr = heap_malloc(20 * sizeof(int));
+    if (heap_get_data_block_start(ptr + 5) != (void *)ptr)
+        return false;
+    destroy_heap();
+    return printf("SUCCESS\n"), true;
 }
 
-bool test_get_block_size(const void *const memblock)
+bool test_get_block_size(void)
 {
-
-    return true;
+    printf("GET DATA BLOCK SIZE TEST Starting...");
+    if (heap_setup())
+        return printf("heap_setup failed. Test aborted\n"), false;
+    printf(" Heap set... ");
+    int *ptr = heap_malloc(20 * sizeof(int));
+    if (heap_get_block_size(ptr) != 20 * sizeof(int))
+        return false;
+    destroy_heap();
+    return printf("SUCCESS\n"), true;
 }
 
 bool test_validate(void)
 {
-
-    return true;
-}
-
-bool test_resize_heap_pages(int pages)
-{
-
-    return true;
+    printf("HEAP VALIDATE TEST Starting...");
+    if (heap_setup())
+        return printf("heap_setup failed. Test aborted\n"), false;
+    printf(" Heap set... ");
+    if (heap_validate() != 0)
+        return false;
+    printf("Valid 1...");
+    int *ptr = heap_malloc(20 * sizeof(int));
+    if (heap_validate() != 0)
+        return false;
+    printf("Valid 2...");
+    *(ptr - 2) = 45;
+    if (heap_validate() == 0)
+        return false;
+    printf("Valid 3...");
+    destroy_heap();
+    heap_setup();
+    ptr = heap_malloc(20 * sizeof(int));
+    *(ptr + 21) = 555;
+    if (heap_validate() == 0)
+        return false;
+    printf("Valid 4...");
+    return printf("SUCCESS\n"), true;
 }
