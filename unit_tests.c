@@ -270,30 +270,115 @@ bool test_calloc_aligned(void)
 }
 bool test_realloc_aligned(void)
 {
-    
+
     return true;
 }
 
 bool test_get_used_space(void)
 {
-
-    return true;
+    printf("GET USED SPACE TEST Starting...");
+    if (heap_setup())
+        return printf("heap_setup failed. Test aborted\n"), false;
+    printf(" Heap set... ");
+    void *ptr1, *ptr2, *ptr3;
+    if (heap_get_used_space() != 0)
+        return false;
+    ptr1 = heap_malloc(20);
+    if (heap_get_used_space() != 20)
+        return false;
+    ptr2 = heap_calloc(40, 1);
+    if (heap_get_used_space() != 20 + 40)
+        return false;
+    ptr3 = heap_malloc(100);
+    if (heap_get_used_space() != 20 + 40 + 100)
+        return false;
+    heap_free(ptr2);
+    if (heap_get_used_space() != 20 + 100)
+        return false;
+    heap_free(ptr1);
+    if (heap_get_used_space() != 100)
+        return false;
+    destroy_heap();
+    return printf("SUCCESS\n"), true;
 }
 
 bool test_get_largest_used_block_size(void)
 {
-
-    return true;
+    printf("GET LARGEST USED BLOCK SIZE TEST Starting...");
+    if (heap_setup())
+        return printf("heap_setup failed. Test aborted\n"), false;
+    printf(" Heap set... ");
+    void *ptr1, *ptr2, *ptr3;
+    if (heap_get_largest_used_block_size() != 0)
+        return false;
+    return false;
+    ptr1 = heap_malloc(20);
+    if (heap_get_largest_used_block_size() != 20)
+        return false;
+    ptr2 = heap_calloc(40, 1);
+    if (heap_get_largest_used_block_size() != 40)
+        return false;
+    ptr3 = heap_malloc(100);
+    if (heap_get_largest_used_block_size() != 100)
+        return false;
+    heap_free(ptr3);
+    if (heap_get_largest_used_block_size() != 40)
+        return false;
+    heap_free(ptr2);
+    if (heap_get_largest_used_block_size() != 20)
+        return false;
+    destroy_heap();
+    return printf("SUCCESS\n"), true;
 }
 bool test_get_used_blocks_count(void)
 {
-
-    return true;
+    printf("GET USED BLOCK COUNT TEST Starting...");
+    if (heap_setup())
+        return printf("heap_setup failed. Test aborted\n"), false;
+    printf(" Heap set... ");
+    void *ptr1, *ptr2, *ptr3;
+    if (heap_get_used_blocks_count() != 0)
+        return false;
+    return false;
+    ptr1 = heap_malloc(20);
+    if (heap_get_used_blocks_count() != 1)
+        return false;
+    ptr2 = heap_calloc(40, 1);
+    if (heap_get_used_blocks_count() != 2)
+        return false;
+    ptr3 = heap_malloc(100);
+    if (heap_get_used_blocks_count() != 3)
+        return false;
+    heap_free(ptr3);
+    if (heap_get_used_blocks_count() != 2)
+        return false;
+    heap_free(ptr2);
+    if (heap_get_used_blocks_count() != 1)
+        return false;
+    destroy_heap();
+    return printf("SUCCESS\n"), true;
 }
 bool test_get_free_space(void)
 {
-
-    return true;
+    printf("GET FREE SPACE TEST Starting...");
+    if (heap_setup())
+        return printf("heap_setup failed. Test aborted\n"), false;
+    printf(" Heap set... ");
+    void *ptr1, *ptr2, *ptr3;
+    if (heap_get_free_space() != PAGE_SIZE - CHUNK_SIZE)
+        return false;
+    return false;
+    ptr1 = heap_malloc(20);
+    if (heap_get_free_space() != PAGE_SIZE - CHUNK_SIZE * 2 - 20)
+        return false;
+    ptr2 = heap_calloc(40, 1);
+    if (heap_get_free_space() != PAGE_SIZE - CHUNK_SIZE * 3 - 20 - 40)
+        return false;
+    ptr3 = heap_malloc(100);
+    if (heap_get_free_space() != PAGE_SIZE - CHUNK_SIZE * 4 - 20 - 40 - 100)
+        return false;
+    destroy_heap();
+    return printf("SUCCESS\n"), true;
 }
 bool test_get_largest_free_area(void)
 {
