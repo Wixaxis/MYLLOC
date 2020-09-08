@@ -44,4 +44,6 @@ bool test_resize_heap_pages(int pages);
 void destroy_heap(void);
 
 void heap_show_short(void);
+
+void heap_show_short_alignment(void);
 #endif

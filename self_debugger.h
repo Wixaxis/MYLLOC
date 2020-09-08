@@ -16,6 +16,8 @@ struct err_t
 pthread_mutex_t err_mamutex;
 
 void feedback(char *msg);
-void display_errs();
+void display_errs(void);
+void empty_feed(void);
+void feed_init(void);
 
 #endif

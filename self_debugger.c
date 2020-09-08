@@ -23,3 +23,11 @@ void display_errs()
     else
         printf("%s", ERRSTR.ERRTAB);
 }
+void empty_feed(void)
+{
+    pthread_mutex_lock(&err_mamutex);
+    memset(ERRSTR.ERRTAB, 0, ERRSTR.errsize);
+    ERRSTR.errsize = 0;
+    pthread_mutex_unlock(&err_mamutex);
+}
+void feed_init(void) { pthread_mutex_init(&err_mamutex, NULL); }

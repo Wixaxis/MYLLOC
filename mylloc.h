@@ -12,12 +12,14 @@
 
 #define SBRK_FAIL (void *)-1
 
-#define DEBUG
+// #define DEBUG
 #ifdef DEBUG
 #include "self_debugger.h"
 #else
 void feedback(char *msg);
 void display_errs();
+void empty_feed(void);
+void feed_init(void);
 #endif
 
 #define FENCE_SIZE 25
@@ -31,6 +33,12 @@ void display_errs();
 #define CHUNK2MEM(PTR) ((void *)(((_chunk *)PTR) + 1))
 #define SIZE2PAGES(SIZE) (SIZE / PAGE_SIZE + !!(SIZE % PAGE_SIZE))
 #define MAX(FIRST, SECOND) ((FIRST) > (SECOND) ? FIRST : SECOND)
+
+enum lock_t
+{
+    lock,
+    unlock
+};
 
 typedef struct _fence
 {
@@ -63,6 +71,8 @@ _heap heap;
 pthread_mutex_t myllock_mutex;
 
 int heap_setup(void);
+
+void MYLOCK(enum lock_t state);
 
 void *heap_malloc(size_t count);
 void *heap_calloc(size_t number, size_t size);
