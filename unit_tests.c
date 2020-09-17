@@ -107,11 +107,20 @@ int run_tests(void)
     // display_errs();
     empty_feed();
 
+    heaps_dont_lie = 1;
     succ += !!test_multithreaded_workload();
     all++;
     printf("\n\n");
     // display_errs();
     empty_feed();
+
+    succ += !!new_test();
+    all++;
+    printf("\n\n");
+    // display_errs();
+    empty_feed();
+
+    heaps_dont_lie = 0;
 
     printf("SUCCESSS IN %d out of %d\n", succ, all);
     return succ;
@@ -266,15 +275,20 @@ bool test_realloc(void)
     if (heap_setup())
         return printf("heap_setup failed. Test aborted\n"), false;
     printf(" Heap set... Allocating 20 bytes...");
-    void *pointer = heap_malloc(20);
+    void *pointer = heap_realloc(NULL, 20);
     if (NULL == pointer)
         return destroy_heap(), printf("ALLOCATION FAILED!"), false;
     heap_show_short();
     printf("Reallocating 20 to 30 bytes... ");
+    for (int i = 0; i < 20; i++)
+        ((char *)pointer)[i] = i;
     void *second_pointer = heap_realloc(pointer, 30);
     if (NULL == second_pointer)
         return destroy_heap(), printf("REALLOCATION FAILED!"), false;
     heap_show_short();
+    for (int i = 0; i < 20; i++)
+        if (((char *)second_pointer)[i] != i)
+            return destroy_heap(), printf("REALLOCATION FAILED!"), false;
     printf("Allocating new 20... ");
     void *third_pointer = heap_malloc(20);
     if (NULL == third_pointer)
@@ -325,7 +339,7 @@ bool test_calloc_aligned(void)
     if (heap_setup())
         return printf("heap_setup failed. Test aborted\n"), false;
     printf(" Heap set... Allocating 20 bytes...");
-    char *ptr1 = heap_calloc_aligned(20, sizeof(char));
+    int *ptr1 = heap_calloc_aligned(20, sizeof(int));
     heap_show_short_alignment();
     if (NULL == ptr1)
         return destroy_heap(), printf("ALLOCATION FAILED"), false;
@@ -549,6 +563,8 @@ bool test_get_pointer_type(void)
         return false;
     if (pointer_inside_data_block != get_pointer_type((char *)ptr2 + sizeof(int) / 2))
         return false;
+    if (pointer_control_block != get_pointer_type((char *)ptr2 - 1))
+        return false;
     destroy_heap();
     return printf("SUCCESS\n"), true;
 }
@@ -641,13 +657,32 @@ void *singular_malloc_test(void *nothing)
     ptr2 = heap_calloc(2048, sizeof(double));
     heap_free(ptr1);
     *ret += (heap_validate() == 0);
-    ptr3 = heap_calloc_aligned(500, sizeof(char *));
+    // ptr3 = heap_calloc_aligned(500, sizeof(char *));
     ptr1 = heap_malloc(sizeof(void *) * 813);
     *ret += (heap_validate() == 0);
     heap_free(ptr2);
-    heap_free(ptr3);
+    // heap_free(ptr3);
     *ret += (heap_validate() == 0);
     heap_free(ptr1);
     *ret += (heap_validate() == 0);
     return NULL;
+}
+
+bool new_test(void)
+{
+    heap_setup();
+    char *ptr1 = heap_malloc(50);
+    char *ptr2 = heap_malloc(1000);
+    char *ptr3 = heap_malloc(50);
+    heap_free(ptr2);
+    ptr2 = heap_malloc(2000);
+    // display_fences();
+    ptr2[-3] = 10;
+    // printf("\n\n\n");
+    // display_fences();
+    int status = heap_validate();
+    heap_show_short();
+    // heap_dump_debug_information();
+    destroy_heap();
+    return status ? true : false;
 }

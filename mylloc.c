@@ -42,6 +42,7 @@ void *heap_malloc(size_t count)
 
 _chunk *find_fitting_chunk(size_t to_allocate)
 {
+    MYLOCK(lock);
     char err_hub[100] = {0};
     sprintf(err_hub, "looking for a chunk of size %lu", to_allocate);
     feedback(err_hub);
@@ -49,38 +50,40 @@ _chunk *find_fitting_chunk(size_t to_allocate)
     for (int i = 0; i < heap.chunk_count; i++, curr_chunk = curr_chunk->next_chunk)
     {
         if (NULL == curr_chunk)
-            return NULL;
+            return MYLOCK(unlock), NULL;
         if (false == curr_chunk->is_free)
             continue;
         if (curr_chunk->mem_size <= to_allocate + CHUNK_SIZE + sizeof(double) && curr_chunk->mem_size >= to_allocate)
-            return feedback("found prefect chunk"), curr_chunk;
+            return MYLOCK(unlock), feedback("found prefect chunk"), curr_chunk;
         if (curr_chunk->mem_size > to_allocate + CHUNK_SIZE + sizeof(double))
         {
             split_chunk(curr_chunk, to_allocate);
-            return feedback("found bigger chunk, had to split it"), curr_chunk;
+            return MYLOCK(unlock), feedback("found bigger chunk, had to split it"), curr_chunk;
         }
     }
-    return feedback("Couldn't find fitting chunk"), NULL;
+    return MYLOCK(unlock), feedback("Couldn't find fitting chunk"), NULL;
 }
 
 bool split_chunk(_chunk *chunk_to_split, size_t memsize)
 {
+    MYLOCK(lock);
     char error_hub[100];
     sprintf(error_hub, "Splitting chunk size %lu of size %lu", chunk_to_split->mem_size, memsize);
     feedback(error_hub);
     if (memsize + CHUNK_SIZE + 10 >= chunk_to_split->mem_size)
-        return feedback("requested mem size too big for chunk to be splitted"), false;
+        return MYLOCK(unlock), feedback("requested mem size too big for chunk to be splitted"), false;
     _chunk *new_chunk = (_chunk *)((char *)CHUNK2MEM(chunk_to_split) + memsize);
     set_chunk(new_chunk, chunk_to_split, chunk_to_split->next_chunk, chunk_to_split->mem_size - MEM_SIZE2CHUNK_SIZE(memsize));
     chunk_to_split->next_chunk = new_chunk;
     chunk_to_split->mem_size = memsize;
     sprintf(error_hub, "chunk splitted to %lu and %lu", chunk_to_split->mem_size, chunk_to_split->next_chunk->mem_size);
     feedback(error_hub);
-    return true;
+    return MYLOCK(unlock), true;
 }
 
 void set_chunk(_chunk *chunk, _chunk *prev_chunk, _chunk *next_chunk, size_t memsize)
 {
+    MYLOCK(lock);
     char err_hub[50] = {0};
     sprintf(err_hub, "setting chunk of size %lu", memsize);
     feedback(err_hub);
@@ -90,19 +93,31 @@ void set_chunk(_chunk *chunk, _chunk *prev_chunk, _chunk *next_chunk, size_t mem
     set_fences(chunk);
     chunk->prev_chunk = prev_chunk;
     heap.chunk_count++;
+    MYLOCK(unlock);
 }
 
 void set_fences(_chunk *chunk)
 {
+    MYLOCK(lock);
     for (int i = 0; i < FENCE_SIZE; i++)
         heap.fence_sum += 2 * (chunk->fence_left.fens[i] = chunk->fence_right.fens[i] = (i % 2 ? 85 : -85));
+    MYLOCK(unlock);
 }
 
 _chunk *heap_get_last_chunk(_chunk *first_chunk)
 {
+    _chunk *turret;
+    MYLOCK(lock);
+    turret = heap_get_last_chunk_safe(first_chunk);
+    MYLOCK(unlock);
+    return turret;
+}
+
+_chunk *heap_get_last_chunk_safe(_chunk *first_chunk)
+{
     if (first_chunk->next_chunk == NULL)
         return first_chunk;
-    return heap_get_last_chunk(first_chunk->next_chunk);
+    return heap_get_last_chunk_safe(first_chunk->next_chunk);
 }
 
 bool resize_heap_pages(int pages)
@@ -342,7 +357,7 @@ void *heap_calloc_aligned_debug(size_t number, size_t size, int fileline, const 
     void *memory = heap_malloc_aligned_debug(number * size, fileline, filename);
     if (NULL == memory)
         return NULL;
-    return memset(memory, 0, number);
+    return memset(memory, 0, number * size);
 }
 void *heap_realloc_aligned_debug(void *memblock, size_t size, int fileline, const char *filename)
 {
@@ -350,14 +365,14 @@ void *heap_realloc_aligned_debug(void *memblock, size_t size, int fileline, cons
         return heap_malloc_aligned_debug(size, fileline, filename);
     if (pointer_valid != get_pointer_type(memblock))
         return feedback("pointer not valid!"), NULL;
+    MYLOCK(lock);
     long old_size = ((_chunk *)memblock - 1)->mem_size;
     char err_tab[100];
     sprintf(err_tab, "asking malloc aligned for %ld bytes", size);
     feedback(err_tab);
     void *memory = heap_malloc_aligned_debug(size, fileline, filename);
     if (NULL == memory)
-        return feedback("Malloc aligned returned NULL"), NULL;
-    MYLOCK(lock);
+        return MYLOCK(unlock), feedback("Malloc aligned returned NULL"), NULL;
     memcpy(memory, memblock, size > old_size ? old_size : size);
     MEM2CHUNK(memblock)->is_free = true;
     return MYLOCK(unlock), memory;
@@ -365,9 +380,10 @@ void *heap_realloc_aligned_debug(void *memblock, size_t size, int fileline, cons
 
 bool block_page_horizon_check(_chunk *chunk)
 {
+    MYLOCK(lock);
     char *block_begin = (char *)(chunk + 1);
     char *block_end = block_begin + chunk->mem_size;
-    return (distance_from_start(block_begin) / PAGE_SIZE) != (distance_from_start(block_end - 1) / PAGE_SIZE) ? true : false;
+    return MYLOCK(unlock), (distance_from_start(block_begin) / PAGE_SIZE) != (distance_from_start(block_end - 1) / PAGE_SIZE) ? true : false;
 }
 
 unsigned long long distance_from_start(void *ptr)
@@ -466,9 +482,10 @@ void *heap_get_data_block_start(const void *pointer)
 
 size_t heap_get_block_size(const void *const memblock)
 {
+    MYLOCK(lock);
     if (pointer_valid != get_pointer_type(memblock))
-        return 0;
-    return (size_t)((_chunk *)memblock - 1)->mem_size;
+        return MYLOCK(unlock), 0;
+    return MYLOCK(unlock), (size_t)((_chunk *)memblock - 1)->mem_size;
 }
 
 int heap_validate(void)
@@ -479,6 +496,7 @@ int heap_validate(void)
     for (_chunk *curr_chunk = heap.first_chunk; curr_chunk != NULL; curr_chunk = curr_chunk->next_chunk)
         for (int i = 0; i < FENCE_SIZE; i++)
             current_sum += curr_chunk->fence_left.fens[i] + curr_chunk->fence_right.fens[i];
+    // printf("CURR SUM: %lld, heap_sum: %lld\n", current_sum, heap.fence_sum);
     char err_tab[100];
     sprintf(err_tab, "curr sum %lld, heap sum %lld", current_sum, heap.fence_sum);
     feedback(err_tab);
@@ -501,3 +519,17 @@ void heap_dump_debug_information(void)
 }
 
 bool is_pointer_aligned(void *ptr) { return ((intptr_t)ptr & (intptr_t)(PAGE_SIZE - 1)) == 0 ? true : false; }
+
+void display_fences()
+{
+    for (_chunk *curr_chunk = heap.first_chunk; curr_chunk != NULL; curr_chunk = curr_chunk->next_chunk)
+    {
+        printf("left fence:[");
+        for (int i = -5; i <= FENCE_SIZE + 4; i++)
+            printf("%d ", curr_chunk->fence_left.fens[i]);
+        printf("]\nright fence:[");
+        for (int i = -5; i <= FENCE_SIZE + 4; i++)
+            printf("%d ", curr_chunk->fence_right.fens[i]);
+        printf("]\n");
+    }
+}

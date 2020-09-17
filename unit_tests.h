@@ -50,4 +50,6 @@ void heap_show_short_alignment(void);
 bool test_multithreaded_workload(void);
 
 void *singular_malloc_test(void *nothing);
+
+bool new_test(void);
 #endif

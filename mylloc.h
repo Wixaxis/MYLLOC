@@ -40,12 +40,12 @@ enum lock_t
     unlock
 };
 
-typedef struct _fence
+typedef struct __attribute__((packed)) _fence
 {
     char fens[FENCE_SIZE];
 } fence;
 
-typedef struct _chunk_t
+typedef struct __attribute__((packed)) _chunk_t
 {
     fence fence_left;
     struct _chunk_t *next_chunk;
@@ -58,7 +58,7 @@ typedef struct _chunk_t
 
 } _chunk;
 
-typedef struct _heap_t
+typedef struct __attribute__((packed)) _heap_t
 {
     _chunk *first_chunk;
     long long fence_sum;
@@ -130,6 +130,7 @@ bool split_chunk(_chunk *chunk_to_split, size_t memsize);
 
 _chunk *find_fitting_chunk(size_t to_allocate);
 _chunk *heap_get_last_chunk(_chunk *first_chunk);
+_chunk *heap_get_last_chunk_safe(_chunk *first_chunk);
 
 unsigned long long distance_from_start(void *ptr);
 
@@ -141,4 +142,5 @@ _chunk *find_fitting_chunk_aligned(size_t to_allocate);
 
 bool is_pointer_aligned(void *ptr);
 
+void display_fences();
 #endif
