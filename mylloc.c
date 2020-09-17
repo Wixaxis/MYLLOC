@@ -473,6 +473,7 @@ size_t heap_get_block_size(const void *const memblock)
 
 int heap_validate(void)
 {
+    // printf("VALIDATING :)\n");
     MYLOCK(lock);
     long long current_sum = 0;
     for (_chunk *curr_chunk = heap.first_chunk; curr_chunk != NULL; curr_chunk = curr_chunk->next_chunk)

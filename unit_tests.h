@@ -46,4 +46,8 @@ void destroy_heap(void);
 void heap_show_short(void);
 
 void heap_show_short_alignment(void);
+
+bool test_multithreaded_workload(void);
+
+void *singular_malloc_test(void *nothing);
 #endif

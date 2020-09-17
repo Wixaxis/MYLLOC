@@ -4,94 +4,116 @@ int heaps_dont_lie = 0;
 
 int run_tests(void)
 {
-    int succ = 0;
+    int succ = 0, all = 0;
     succ += !!test_heap_setup();
+    all++;
     printf("\n\n");
     //display_errs();
     empty_feed();
 
     succ += !!test_malloc_and_free();
+    all++;
     printf("\n\n");
     //display_errs();
     empty_feed();
 
     succ += !!test_calloc();
+    all++;
     printf("\n\n");
     //display_errs();
     empty_feed();
 
     succ += !!test_realloc();
+    all++;
     printf("\n\n");
     //display_errs();
     empty_feed();
 
     succ += !!test_malloc_aligned();
+    all++;
     printf("\n\n");
     // display_errs();
     empty_feed();
 
     succ += !!test_calloc_aligned();
+    all++;
     printf("\n\n");
     // display_errs();
     empty_feed();
 
     succ += !!test_realloc_aligned();
+    all++;
     printf("\n\n");
     // display_errs();
     empty_feed();
 
     succ += !!test_get_used_space();
+    all++;
     printf("\n\n");
     // display_errs();
     empty_feed();
 
     succ += !!test_get_largest_used_block_size();
+    all++;
     printf("\n\n");
     //display_errs();
     empty_feed();
 
     succ += !!test_get_used_blocks_count();
+    all++;
     printf("\n\n");
     //display_errs();
     empty_feed();
 
     succ += !!test_get_free_space();
+    all++;
     printf("\n\n");
     //display_errs();
     empty_feed();
 
     succ += !!test_get_largest_free_area();
+    all++;
     printf("\n\n");
     //display_errs();
     empty_feed();
 
     succ += !!test_get_free_gaps_count();
+    all++;
     printf("\n\n");
     //display_errs();
     empty_feed();
 
     succ += !!test_get_pointer_type();
+    all++;
     printf("\n\n");
     //display_errs();
     empty_feed();
 
     succ += !!test_get_data_block_start();
+    all++;
     printf("\n\n");
     //display_errs();
     empty_feed();
 
     succ += !!test_get_block_size();
+    all++;
     printf("\n\n");
     //display_errs();
     empty_feed();
 
     succ += !!test_validate();
+    all++;
     printf("\n\n");
     // display_errs();
     empty_feed();
 
-    printf("SUCCESSS IN %d out of 17\n", succ);
+    succ += !!test_multithreaded_workload();
+    all++;
+    printf("\n\n");
+    // display_errs();
+    empty_feed();
 
+    printf("SUCCESSS IN %d out of %d\n", succ, all);
     return succ;
 }
 void destroy_heap(void)
@@ -564,22 +586,68 @@ bool test_validate(void)
         return printf("heap_setup failed. Test aborted\n"), false;
     printf(" Heap set... ");
     if (heap_validate() != 0)
-        return false;
+        return destroy_heap(), false;
     printf("Valid 1...");
     int *ptr = heap_malloc(20 * sizeof(int));
     if (heap_validate() != 0)
-        return false;
+        return destroy_heap(), false;
     printf("Valid 2...");
     *(ptr - 2) = 45;
     if (heap_validate() == 0)
-        return false;
+        return destroy_heap(), false;
     printf("Valid 3...");
     destroy_heap();
     heap_setup();
     ptr = heap_malloc(20 * sizeof(int));
     *(ptr + 21) = 555;
     if (heap_validate() == 0)
-        return false;
+        return destroy_heap(), false;
     printf("Valid 4...");
-    return printf("SUCCESS\n"), true;
+    return printf("SUCCESS\n"), destroy_heap(), true;
+}
+
+bool test_multithreaded_workload(void)
+{
+    int threadcount = 20;
+    printf("MULTITHREADED WORKLOAD TEST Starting...");
+    if (heap_setup())
+        return printf("heap_setup failed. Test aborted\n"), false;
+    printf(" Heap set... ");
+    if (heap_validate() != 0)
+        return false;
+    pthread_t threads[threadcount];
+    int results[threadcount];
+    int status = 0;
+    for (int i = 0; i < threadcount; i++)
+        pthread_create(&threads[i], NULL, singular_malloc_test, (void *)&results[i]);
+    for (int i = 0; i < threadcount / 3; i++)
+        status += heap_validate();
+    for (int i = 0; i < threadcount; i++)
+        pthread_join(threads[i], (void *)(results + i));
+    for (int i = 0; i < 10; i++)
+        status += results[i];
+    if (!status)
+        return printf("TEST SUCCESS!"), destroy_heap(), true;
+    return printf("%d multithreaded tests failed :<\n", status), destroy_heap(), false;
+}
+
+void *singular_malloc_test(void *nothing)
+{
+    void *ptr1, *ptr2, *ptr3;
+    int *ret = (int *)nothing;
+    *ret = 0;
+    ptr1 = heap_malloc(sizeof(int) * 1024);
+    *ret += (heap_validate() == 0);
+    ptr2 = heap_calloc(2048, sizeof(double));
+    heap_free(ptr1);
+    *ret += (heap_validate() == 0);
+    ptr3 = heap_calloc_aligned(500, sizeof(char *));
+    ptr1 = heap_malloc(sizeof(void *) * 813);
+    *ret += (heap_validate() == 0);
+    heap_free(ptr2);
+    heap_free(ptr3);
+    *ret += (heap_validate() == 0);
+    heap_free(ptr1);
+    *ret += (heap_validate() == 0);
+    return NULL;
 }
