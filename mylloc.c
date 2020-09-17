@@ -221,6 +221,8 @@ void *heap_realloc(void *memblock, size_t size)
 
 void *heap_malloc_debug(size_t count, int fileline, const char *filename)
 {
+    if (heap_validate())
+        return NULL;
     char err_hub[200] = {0};
     sprintf(err_hub, "trying to allocate %lu bytes in line %d", count, fileline);
     feedback(err_hub);
@@ -250,6 +252,8 @@ void *heap_malloc_debug(size_t count, int fileline, const char *filename)
 }
 void *heap_calloc_debug(size_t number, size_t size, int fileline, const char *filename)
 {
+    if (heap_validate())
+        return NULL;
     MYLOCK(lock);
     if (number + size < number)
         return MYLOCK(unlock), NULL;
@@ -260,6 +264,8 @@ void *heap_calloc_debug(size_t number, size_t size, int fileline, const char *fi
 }
 void *heap_realloc_debug(void *memblock, size_t size, int fileline, const char *filename)
 {
+    if (heap_validate())
+        return NULL;
     if (NULL == memblock)
         return heap_malloc_debug(size, fileline, filename);
     if (pointer_valid != get_pointer_type(memblock))
@@ -340,6 +346,8 @@ _chunk *find_fitting_chunk_aligned(size_t to_allocate)
 
 void *heap_malloc_aligned_debug(size_t count, int fileline, const char *filename)
 {
+    if (heap_validate())
+        return NULL;
     feedback("aligned malloc start");
     if (count + CHUNK_SIZE < count)
         return feedback("aligned malloc count overflow"), NULL;
@@ -361,6 +369,8 @@ void *heap_calloc_aligned_debug(size_t number, size_t size, int fileline, const 
 }
 void *heap_realloc_aligned_debug(void *memblock, size_t size, int fileline, const char *filename)
 {
+    if (heap_validate())
+        return NULL;
     if (NULL == memblock)
         return heap_malloc_aligned_debug(size, fileline, filename);
     if (pointer_valid != get_pointer_type(memblock))
